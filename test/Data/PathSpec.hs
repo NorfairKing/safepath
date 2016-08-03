@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Data.PathSpec (spec) where
 
 import Test.Hspec
@@ -8,6 +9,9 @@ import Control.Exception (evaluate)
 
 import Data.Path.Internal
 import Data.Path.Gen ()
+
+uncheckedPath :: Gen FilePath
+uncheckedPath = arbitrary
 
 spec :: Spec
 spec = do
@@ -26,23 +30,70 @@ spec = do
 
     describe "safeRelPath" $ do
         it "produces valid paths when it succeeds" $ do
+            validIfSucceedsOnGen safeRelPath arbitrary
+
+        it "fails to parse valid absolute paths" $ do
             pending
-            -- validIfSucceedsOnGen safeRelPath arbitrary
+            -- forAll (genValid :: Gen AbsPath) $ \abspath ->
+            --       safeRelPath (toFilePath abspath) `shouldBe` Nothing
+
+        it "succeeds on these unit tests" $ do
+            let shouldParseTo inp pieces exts
+                    = safeRelPath inp
+                    `shouldBe` Just (Path (map PathPiece pieces) (map Extension exts))
+            shouldParseTo "test"
+                ["test"] []
+            shouldParseTo "test/file"
+                ["test","file"] []
+            shouldParseTo "test/file/path"
+                ["test", "file", "path"] []
+            shouldParseTo "directory/file.ext"
+                ["directory","file"] ["ext"]
 
     describe "unsafeRelPathError" $ do
-        it "produces valid paths when it succeeds" $ do
-            pending
-            -- producesValidsOnGen unsafeRelPathError arbitrary
+        it "behaves just like safeRelPath except for errors" $ do
+            forAll uncheckedPath $ \fp ->
+                case safeRelPath fp of
+                    Nothing -> evaluate (unsafeRelPathError fp) `shouldThrow` anyErrorCall
+                    Just res -> unsafeRelPathError fp `shouldBe` res
+
 
     describe "safeAbsPath" $ do
         it "produces valid paths when it succeeds" $ do
+            validIfSucceedsOnGen safeRelPath arbitrary
+
+        it "fails to parse valid relative paths" $ do
             pending
-            -- validIfSucceedsOnGen safeRelPath arbitrary
+            -- forAll (genValid :: Gen RelPath) $ \relpath ->
+            --       safeRelPath (toFilePath relpath) `shouldBe` Nothing
 
     describe "unsafeAbsPathError" $ do
-        it "produces valid paths when it succeeds" $ do
-            pending
-            -- producesValidsOnGen unsafeRelPathError arbitrary
+        it "behaves just like safeRelPath except for errors" $ do
+            forAll uncheckedPath $ \fp ->
+                case safeRelPath fp of
+                    Nothing -> evaluate (unsafeRelPathError fp) `shouldThrow` anyErrorCall
+                    Just res -> unsafeRelPathError fp `shouldBe` res
+
+    describe "toFilePath" $ do
+        it "is the inverse of the succeeding runs of safeRelPath when starting with a fp" $ do
+            forAll uncheckedPath $ \fp ->
+                case safeRelPath fp of
+                    Nothing -> return () -- Can happen
+                    Just relpath -> toFilePath relpath `shouldBe` fp
+
+        it "is the inverse of the succeeding runs of safeRelPath when starting with a valid relpath" $ do
+            forAll genValid $ \relpath ->
+                  safeRelPath (toFilePath relpath) `shouldBe` Just relpath
+
+        it "is the inverse of the succeeding runs of safeAbsPath when starting with a fp" $ do
+            forAll uncheckedPath $ \fp ->
+                case safeAbsPath fp of
+                    Nothing -> return () -- Can happen
+                    Just relpath -> toFilePath relpath `shouldBe` fp
+
+        it "is the inverse of the succeeding runs of safeRelPath when starting with a valid abspath" $ do
+            forAll genValid $ \abspath ->
+                  safeAbsPath (toFilePath abspath) `shouldBe` Just abspath
 
     describe "</>" $ do
         it "produces valid paths when it succeeds" $ do
