@@ -8,14 +8,20 @@ import Data.GenValidity.Text
 
 import Data.Path.Internal
 
-instance Arbitrary (Path Absolute) where
+instance Arbitrary (Path rel) where
     arbitrary = genValid
 
-instance Arbitrary (Path Relative) where
+instance GenValidity (Path rel) where
+    genUnchecked = Path <$> genUnchecked <*> genUnchecked
+
+instance Arbitrary PathPiece where
     arbitrary = genValid
 
-instance GenValidity (Path Absolute) where
-    genUnchecked = Path <$> genListOf genUncheckedText <*> genListOf genUncheckedText
+instance GenValidity PathPiece where
+    genUnchecked = PathPiece <$> genUncheckedText
 
-instance GenValidity (Path Relative) where
-    genUnchecked = Path <$> genListOf genUncheckedText <*> genListOf genUncheckedText
+instance Arbitrary Extension where
+    arbitrary = genValid
+
+instance GenValidity Extension where
+    genUnchecked = Extension <$> genUncheckedText
