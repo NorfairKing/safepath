@@ -35,9 +35,8 @@ spec = do
             validIfSucceedsOnGen safeRelPath arbitrary
 
         it "fails to parse valid absolute paths" $ do
-            pending
-            -- forAll (genValid :: Gen AbsPath) $ \abspath ->
-            --       safeRelPath (toFilePath abspath) `shouldBe` Nothing
+            forAll genValid $ \abspath ->
+                safeRelPath (toAbsFilePath abspath) `shouldBe` Nothing
 
         let works gen = forAll gen $ \(fp, path) -> safeRelPath fp `shouldBe` Just path
         it "succesfully correctly parses single-piece filepaths" $ do
@@ -63,9 +62,8 @@ spec = do
             validIfSucceedsOnGen safeRelPath arbitrary
 
         it "fails to parse valid relative paths" $ do
-            pending
-            -- forAll (genValid :: Gen RelPath) $ \relpath ->
-            --       safeRelPath (toFilePath relpath) `shouldBe` Nothing
+            forAll genValid $ \relpath ->
+                safeAbsPath (toRelFilePath relpath) `shouldBe` Nothing
 
         let works gen = forAll gen $ \(fp, path) -> safeAbsPath fp `shouldBe` Just path
         it "succesfully correctly parses single-piece filepaths" $ do
@@ -88,27 +86,19 @@ spec = do
     describe "toFilePath" $ do
         it "is the inverse of the succeeding runs of safeRelPath when starting with a fp" $ do
             pending
-            -- forAll uncheckedPath $ \fp ->
-            --     case safeRelPath fp of
-            --         Nothing -> return () -- Can happen
-            --         Just relpath -> toFilePath relpath `shouldBe` fp
+            -- inverseFunctionsIfSecondSucceeds toRelFilePath safeRelPath
 
         it "is the inverse of the succeeding runs of safeRelPath when starting with a valid relpath" $ do
             pending
-            -- forAll genValid $ \relpath ->
-            --       safeRelPath (toFilePath relpath) `shouldBe` Just relpath
+            -- inverseFunctionsIfFirstSucceedsOnGen safeRelPath toRelFilePath arbitrary
 
         it "is the inverse of the succeeding runs of safeAbsPath when starting with a fp" $ do
             pending
-            -- forAll uncheckedPath $ \fp ->
-            --     case safeAbsPath fp of
-            --         Nothing -> return () -- Can happen
-            --         Just relpath -> toFilePath relpath `shouldBe` fp
+            -- inverseFunctionsIfSecondSucceeds toAbsFilePath safeAbsPath
 
         it "is the inverse of the succeeding runs of safeRelPath when starting with a valid abspath" $ do
             pending
-            -- forAll genValid $ \abspath ->
-            --       safeAbsPath (toFilePath abspath) `shouldBe` Just abspath
+            -- inverseFunctionsIfFirstSucceedsOnGen safeAbsPath toAbsFilePath arbitrary
 
     describe "</>" $ do
         it "produces valid paths when it succeeds" $ do

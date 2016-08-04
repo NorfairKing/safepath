@@ -51,7 +51,7 @@ genRelPathNoExtensions :: Gen (FilePath, RelPath)
 genRelPathNoExtensions = do
     Path pieces _ <- genValid
     let path = Path pieces []
-        fp = toFilePath path
+        fp = toRelFilePath path
     return (fp, path)
 
 genAbsPathNoExtensions :: Gen (FilePath, AbsPath)
