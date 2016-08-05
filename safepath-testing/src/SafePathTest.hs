@@ -6,8 +6,10 @@ import OptParse
 import System.Exit (exitFailure)
 import Data.Monoid ((<>))
 
+import System.Directory
 import Control.Monad.Reader
 import Data.Aeson
+import qualified System.FilePath as FP
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.ByteString.Lazy.Char8 as LB8
 
@@ -24,6 +26,34 @@ type Configured = ReaderT Settings IO
 
 dispatch :: Command -> Configured ()
 dispatch (CommandGenCase fp af) = genCase fp af
+dispatch (CommandGenTreeCases fp ou) = genTreeCases fp ou
+
+genTreeCases :: Maybe FilePath -> Maybe FilePath -> Configured ()
+genTreeCases msp mof = do
+    sp <- case msp of
+        Nothing -> liftIO getCurrentDirectory
+        Just sp -> return sp
+    fs <- liftIO $ listDirectoryRecursive sp
+    forM_ fs $ \fp ->
+        genCase fp mof
+
+listDirectoryRecursive
+    :: FilePath
+    -> IO [FilePath]
+listDirectoryRecursive dir = do
+    fs <- listDirectory dir
+    fps <- (concat <$>) $ forM fs $ \file -> do
+        let f = dir FP.</> file
+        isFile <- doesFileExist f
+        if isFile
+        then return [f]
+        else do
+            isDir <- doesDirectoryExist f
+            if isDir
+            then listDirectoryRecursive f
+            else return []
+    return $ dir : fps
+
 
 genCase :: FilePath -> Maybe FilePath -> Configured ()
 genCase fp maf = do

@@ -148,7 +148,8 @@ renderExtension :: Extension -> String
 renderExtension (Extension e) = T.unpack e
 
 renderExtensions :: [Extension] -> String
-renderExtensions = intercalate "." . map renderExtension
+renderExtensions [] = ""
+renderExtensions es = "." ++ intercalate "." (map renderExtension es)
 
 combineLastAndExtensions :: LastPathPiece -> [Extension] -> PathPiece
 combineLastAndExtensions (LastPathPiece (PathPiece lpp)) es

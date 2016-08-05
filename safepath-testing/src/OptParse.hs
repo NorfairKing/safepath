@@ -18,6 +18,9 @@ data Command
     = CommandGenCase
         FilePath          -- ^ The sample filepath
         (Maybe FilePath)  -- ^ The data file to append to
+    | CommandGenTreeCases
+        (Maybe FilePath)  -- ^ The starting directory
+        (Maybe FilePath)  -- ^ The data file to write to
     deriving (Show, Eq)
 
 data Flags
@@ -71,7 +74,8 @@ parseArgs = (,) <$> parseCommand <*> parseFlags
 
 parseCommand :: Parser Command
 parseCommand = hsubparser $ mconcat
-    [ command "gencase" $ parseGenCase
+    [ command "gencase"       $ parseGenCase
+    , command "gentreecases"  $ parseGenTreeCases
     ]
 
 parseGenCase :: ParserInfo Command
@@ -85,6 +89,23 @@ parseGenCase = info parser modifier
             <> short 'a'
             <> long "amend"
             <> help "the path to the data file to append to")
+    modifier = fullDesc
+            <> progDesc "Generate a single test case"
+
+parseGenTreeCases :: ParserInfo Command
+parseGenTreeCases = info parser modifier
+  where
+    parser = CommandGenTreeCases
+        <$> option (Just <$> str) (metavar "ROOT"
+            <> value Nothing
+            <> short 'r'
+            <> long "root"
+            <> help "the path to root to start from")
+        <*> option (Just <$> str) (metavar "CASEFILE"
+            <> value Nothing
+            <> short 'o'
+            <> long "output"
+            <> help "the path to the data file to output to")
     modifier = fullDesc
             <> progDesc "Generate a single test case"
 
