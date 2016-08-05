@@ -16,4 +16,5 @@ packages:
   extra-dep: true
 - location: /home/syd/validity/genvalidity-hspec
   extra-dep: true
-resolver: lts-6.10
+compiler: ghc-8.0.1
+resolver: nightly-2016-06-05

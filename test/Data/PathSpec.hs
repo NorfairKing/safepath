@@ -100,15 +100,17 @@ spec = do
             pending
             -- inverseFunctionsIfFirstSucceedsOnGen safeAbsPath toAbsFilePath arbitrary
 
+    describe "combineLastAndExtensions" $ do
+        it "produces valid pathpieces on valids" $ do
+            producesValidsOnValids2 combineLastAndExtensions
+
     describe "</>" $ do
         it "produces valid paths when it succeeds" $ do
-            pending
-            -- producesValidsOnValids2 (</>)
+            producesValidsOnValids2 (</>)
 
     describe "<.>" $ do
         it "produces valid paths when it succeeds" $ do
-            pending
-            -- producesValidsOnValids2 (<.>)
+            producesValidsOnValids2 (<.>)
 
 genSpec :: Spec
 genSpec = describe "GenSpec" $ do
