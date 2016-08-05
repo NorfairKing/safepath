@@ -6,11 +6,19 @@ import Test.Validity
 import Test.QuickCheck
 
 import Control.Exception (evaluate)
-import Control.Monad (forM_)
+import Control.Monad (forM_, void)
+import Control.DeepSeq (deepseq)
+import Data.Typeable
+import Data.Proxy
+import Data.Data
+
+import Data.Aeson
 
 import Data.Path.Internal
 import Data.Path.Gen
+import Data.Path.IO ()
 import Data.PathCases
+import TestCase
 
 uncheckedPath :: Gen FilePath
 uncheckedPath = arbitrary
@@ -164,8 +172,33 @@ genSpec = describe "GenSpec" $ do
     arbitrarySpec   (Proxy :: Proxy Extension)
     genValiditySpec (Proxy :: Proxy Extension)
 
+    customJSONSanity (Proxy :: Proxy (TestCase Absolute))
+    customJSONSanity (Proxy :: Proxy (TestCase Relative))
+    customJSONSanity (Proxy :: Proxy (Path Absolute))
+    customJSONSanity (Proxy :: Proxy (Path Relative))
+    customJSONSanity (Proxy :: Proxy LastPathPiece)
+    customJSONSanity (Proxy :: Proxy PathPiece)
+    customJSONSanity (Proxy :: Proxy Extension)
 
 
 
+customJSONSanity
+    :: (FromJSON a, ToJSON a, Arbitrary a, Show a, Eq a, Data a, Typeable a)
+    => Proxy a
+    -> Spec
+customJSONSanity t = do
+    let name = nameOf t
+    describe ("JSON " ++ name) $ do
+        it "never fails to encode" $ do
+            property $ \a ->
+                void (evaluate (deepseq (encode (a `asProxyTypeOf` t)))) `shouldReturn` ()
 
+        it "ensures that encode and decode are inverses" $ do
+            property $ \a ->
+                decode (encode (a `asProxyTypeOf` t)) `shouldBe` Just a
+
+nameOf :: Typeable a => Proxy a -> String
+nameOf proxy =
+    let (_, [ty]) = splitTyConApp $ typeOf proxy
+    in show ty
 

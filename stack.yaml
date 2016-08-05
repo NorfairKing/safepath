@@ -2,8 +2,7 @@ flags: {}
 extra-package-dbs: []
 packages:
 - './safepath'
-- location: /home/syd/introduction/introduction-test
-  extra-dep: true
+- './safepath-testing'
 - location: /home/syd/validity/validity
   extra-dep: true
 - location: /home/syd/validity/validity-containers

@@ -11,6 +11,7 @@ import GHC.Generics
 import Data.Maybe (isJust)
 import Data.String (IsString(..))
 import Data.List (intercalate)
+import Data.Data
 
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -26,7 +27,7 @@ data Path rel
     { pathPieces      :: [PathPiece]
     , pathLastPiece   :: LastPathPiece
     , pathExtensions  :: [Extension]
-    } deriving (Show, Eq, Generic, Typeable)
+    } deriving (Show, Eq, Generic, Data, Typeable)
 
 -- Choose nicer ways of printing if the context allows the compiler to figure
 -- out what kind of path it is.
@@ -37,11 +38,11 @@ instance Show (Path Relative) where
 instance Show (Path Absolute) where
     show = toAbsFilePath
 
-data Absolute
-    deriving (Generic, Typeable)
+data Absolute = Absolute
+    deriving (Generic, Data, Typeable)
 
-data Relative
-    deriving (Generic, Typeable)
+data Relative = Relative
+    deriving (Generic, Data, Typeable)
 
 instance Validity (Path rel) where
     isValid Path{..}
@@ -50,19 +51,19 @@ instance Validity (Path rel) where
         && isValid pathExtensions
 
 newtype PathPiece = PathPiece Text
-    deriving (Show, Eq, Generic, Typeable)
+    deriving (Show, Eq, Generic, Data, Typeable)
 
 instance Validity PathPiece where
     isValid (PathPiece t) = not (T.null t) && not (containsSeparator t)
 
 newtype LastPathPiece = LastPathPiece PathPiece
-    deriving (Show, Eq, Generic, Typeable)
+    deriving (Show, Eq, Generic, Data, Typeable)
 
 instance Validity LastPathPiece where
     isValid (LastPathPiece pp@(PathPiece t)) = isValid pp && not (containsDot t)
 
 newtype Extension = Extension Text
-    deriving (Show, Eq, Generic, Typeable)
+    deriving (Show, Eq, Generic, Data, Typeable)
 
 instance Validity Extension where
     isValid (Extension t) = not (T.null t) && not (containsDot t) && not (containsSeparator t)
@@ -100,7 +101,7 @@ safeRelPath ('/':_) = Nothing
 safeRelPath fp = do
     let rawPieces = filter (not . T.null) $ T.split (== '/') $ T.pack fp
     (firstPieces, lastRawPiece) <- unsnocMay rawPieces
-    let rawExts = filter (not . T.null) $ T.split (== '.') $ lastRawPiece
+    let rawExts = filter (not . T.null) $ T.split (== '.') lastRawPiece
     (lastPieceStr, safeExts) <- unconsMay rawExts
     let pieces = map PathPiece firstPieces
     let lastPiece = LastPathPiece $ PathPiece lastPieceStr
@@ -171,3 +172,4 @@ unsafePathTypeCoerse (Path pieces lastPiece exts) = Path pieces lastPiece exts
     = path
     { pathExtensions = pathExtensions path ++ [extension]
     }
+
