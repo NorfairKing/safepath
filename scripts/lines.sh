@@ -4,4 +4,4 @@ print_colored_text BLUE "Actual code:\n"
 cloc ./safepath/src
 
 print_colored_text BLUE "Tests:\n"
-cloc ./safepath/test
+cloc ./safepath-testing/src ./safepath-testing/test
