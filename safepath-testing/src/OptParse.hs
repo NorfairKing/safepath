@@ -16,11 +16,15 @@ defaultSettings = Settings
 
 data Command
     = CommandGenCase
-        FilePath          -- ^ The sample filepath
-        (Maybe FilePath)  -- ^ The data file to append to
+        FilePath
+        (Maybe FilePath)
+          -- ^ The sample filepath
+          -- ^ The data file to append to
     | CommandGenTreeCases
-        (Maybe FilePath)  -- ^ The starting directory
-        (Maybe FilePath)  -- ^ The data file to write to
+        (Maybe FilePath)
+        (Maybe FilePath)
+          -- ^ The starting directory
+          -- ^ The data file to write to
     deriving (Show, Eq)
 
 data Flags
