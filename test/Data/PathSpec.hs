@@ -39,10 +39,10 @@ spec = do
                 safeRelPath (toAbsFilePath abspath) `shouldBe` Nothing
 
         let works gen = forAll gen $ \(fp, path) -> safeRelPath fp `shouldBe` Just path
-        it "succesfully correctly parses single-piece filepaths" $ do
+        it "succesfully correctly parses single-piece filepaths as generated" $ do
             works genRelPathSinglePieceFilePath
 
-        it "succesfully correctly parses filepaths without extensions" $ do
+        it "succesfully correctly parses filepaths without extensions as generated" $ do
             works genRelPathNoExtensions
 
         it "succeeds on these black-box tests" $ do
@@ -66,10 +66,10 @@ spec = do
                 safeAbsPath (toRelFilePath relpath) `shouldBe` Nothing
 
         let works gen = forAll gen $ \(fp, path) -> safeAbsPath fp `shouldBe` Just path
-        it "succesfully correctly parses single-piece filepaths" $ do
+        it "succesfully correctly parses single-piece filepaths as generated" $ do
             works genAbsPathSinglePieceFilePath
 
-        it "succesfully correctly parses filepaths without extensions" $ do
+        it "succesfully correctly parses filepaths without extensions as generated" $ do
             works genAbsPathNoExtensions
 
         it "succeeds on these black-box tests" $ do
