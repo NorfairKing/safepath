@@ -118,6 +118,8 @@ genSpec = describe "GenSpec" $ do
     genValiditySpec (Proxy :: Proxy (Path Relative))
     arbitrarySpec   (Proxy :: Proxy PathPiece)
     genValiditySpec (Proxy :: Proxy PathPiece)
+    arbitrarySpec   (Proxy :: Proxy LastPathPiece)
+    genValiditySpec (Proxy :: Proxy LastPathPiece)
     arbitrarySpec   (Proxy :: Proxy Extension)
     genValiditySpec (Proxy :: Proxy Extension)
 
