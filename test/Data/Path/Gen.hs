@@ -15,13 +15,22 @@ instance Arbitrary (Path rel) where
     arbitrary = genValid
 
 instance GenValidity (Path rel) where
-    genUnchecked = Path <$> genUnchecked <*> genUnchecked
+    genUnchecked = Path
+        <$> genUnchecked
+        <*> genUnchecked
+        <*> genUnchecked
 
 instance Arbitrary PathPiece where
     arbitrary = genValid
 
 instance GenValidity PathPiece where
     genUnchecked = PathPiece <$> genUncheckedText
+
+instance Arbitrary LastPathPiece where
+    arbitrary = genValid
+
+instance GenValidity LastPathPiece where
+    genUnchecked = LastPathPiece <$> genUnchecked
 
 instance Arbitrary Extension where
     arbitrary = genValid
@@ -34,14 +43,11 @@ toAbsPathGen gen = do
     (fp, path) <- gen
     return ('/':fp, unsafePathTypeCoerse path)
 
-genValidLastPathPiece :: Gen PathPiece
-genValidLastPathPiece = genValid `suchThat` isValidLastPiece
-
 genRelPathSinglePieceFilePath :: Gen (FilePath, RelPath)
 genRelPathSinglePieceFilePath = do
-    piece <- genValidLastPathPiece
-    let fp = renderPiece piece
-        path = Path [PathPiece $ T.pack fp] []
+    piece <- genValid
+    let fp = renderLastPiece piece
+        path = Path [] (LastPathPiece $ PathPiece $ T.pack fp) []
     return (fp, path)
 
 genAbsPathSinglePieceFilePath :: Gen (FilePath, AbsPath)
@@ -49,8 +55,8 @@ genAbsPathSinglePieceFilePath = toAbsPathGen genRelPathSinglePieceFilePath
 
 genRelPathNoExtensions :: Gen (FilePath, RelPath)
 genRelPathNoExtensions = do
-    Path pieces _ <- genValid
-    let path = Path pieces []
+    Path pieces lp _ <- genValid
+    let path = Path pieces lp []
         fp = toRelFilePath path
     return (fp, path)
 

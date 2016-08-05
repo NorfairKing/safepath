@@ -8,11 +8,11 @@ import Data.Path.Internal
 import Control.Arrow (first)
 
 pathCases :: [(String, Path rel)]
-pathCases = map (\(a, b, c) -> (a, Path (map PathPiece b) (map Extension c)))
-  [ ("test", ["test"], [])
-  , ("test/file", ["test", "file"], [])
-  , ("test/file/path", ["test", "file", "path"], [])
-  , ("test/file/path.ext", ["test", "file", "path"], ["ext"])
+pathCases = map (\(a, b, c, d) -> (a, Path (map PathPiece b) (LastPathPiece $ PathPiece c) (map Extension d)))
+  [ ("test", [], "test", [])
+  , ("test/file", ["test"], "file", [])
+  , ("test/file/path", ["test", "file"], "path", [])
+  , ("test/file/path.ext", ["test", "file"], "path", ["ext"])
   ]
 
 relativePathCases :: [(String, RelPath)]
