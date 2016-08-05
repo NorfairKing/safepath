@@ -1,8 +1,8 @@
 source scripts/lib.sh
 h () {
-  hlint ./src
+  hlint ./safepath/src
 
-  hlint ./test \
+  hlint ./safepath/test \
     --ignore "Redundant do" \
     --ignore "Redundant $"
 }
