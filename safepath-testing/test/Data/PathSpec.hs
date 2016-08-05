@@ -6,13 +6,17 @@ import Test.Validity
 import Test.QuickCheck
 
 import Control.Exception (evaluate)
-import Control.Monad (forM_, void)
+import Control.Monad (forM_, void, when)
 import Control.DeepSeq (deepseq)
 import Data.Typeable
 import Data.Proxy
 import Data.Data
 
+import qualified Data.ByteString.Lazy as LB
+import qualified Data.ByteString.Lazy.Char8 as LB8
+
 import Data.Aeson
+import System.Directory (doesFileExist)
 
 import Data.Path.Internal
 import Data.Path.Gen
@@ -159,6 +163,8 @@ spec = do
         it "produces valid paths when it succeeds" $ do
             producesValidsOnValids2 (<.>)
 
+    blackboxSpec
+
 genSpec :: Spec
 genSpec = describe "GenSpec" $ do
     arbitrarySpec   (Proxy :: Proxy (Path Absolute))
@@ -180,8 +186,6 @@ genSpec = describe "GenSpec" $ do
     customJSONSanity (Proxy :: Proxy PathPiece)
     customJSONSanity (Proxy :: Proxy Extension)
 
-
-
 customJSONSanity
     :: (FromJSON a, ToJSON a, Arbitrary a, Show a, Eq a, Data a, Typeable a)
     => Proxy a
@@ -201,4 +205,40 @@ nameOf :: Typeable a => Proxy a -> String
 nameOf proxy =
     let (_, [ty]) = splitTyConApp $ typeOf proxy
     in show ty
+
+blackboxSpec :: Spec
+blackboxSpec = describe "Black-box tests" $ do
+    describe "Parse tests" $ withExistingContentsLB "data/cases.txt" $ \lbs ->
+        forM_ (LB8.lines lbs) $ \line ->
+            case decode line of
+                Just (TestCase fp relpath) ->
+                    it fp $ safeRelPath fp `shouldBe` Just relpath
+                Nothing ->
+                    case decode line of
+                        Just (TestCase fp abspath) ->
+                            it fp $ safeAbsPath fp `shouldBe` Just abspath
+                        Nothing -> return ()
+
+    describe "Render tests" $ withExistingContentsLB "data/cases.txt" $ \lbs ->
+        forM_ (LB8.lines lbs) $ \line ->
+            case decode line of
+                Just (TestCase fp relpath) ->
+                    it fp $ toRelFilePath relpath `shouldBe` fp
+                Nothing ->
+                    case decode line of
+                        Just (TestCase fp abspath) ->
+                            it fp $ toAbsFilePath abspath `shouldBe` fp
+                        Nothing -> return ()
+
+
+withExisting :: FilePath -> Spec -> Spec
+withExisting fp func = do
+    exists <- runIO $ doesFileExist fp
+    when exists func
+
+-- | Sets up an expectation based on the contents of the given file, if the file exists.
+-- (Text version)
+withExistingContentsLB :: FilePath -> (LB.ByteString -> Spec) -> Spec
+withExistingContentsLB fp func = do
+    withExisting fp $ runIO (LB.readFile fp) >>= func
 

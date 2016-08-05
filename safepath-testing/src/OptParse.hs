@@ -80,8 +80,10 @@ parseGenCase = info parser modifier
     parser = CommandGenCase
         <$> strArgument (metavar "FILEPATH"
             <> help "the path to generate a test case for")
-        <*> option (Just <$> str) (metavar "FILEPATh"
+        <*> option (Just <$> str) (metavar "CASEFILE"
             <> value Nothing
+            <> short 'a'
+            <> long "amend"
             <> help "the path to the data file to append to")
     modifier = fullDesc
             <> progDesc "Generate a single test case"

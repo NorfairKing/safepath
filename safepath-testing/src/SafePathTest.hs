@@ -1,8 +1,10 @@
+{-# LANGUAGE OverloadedStrings #-}
 module SafePathTest where
 
 import OptParse
 
 import System.Exit (exitFailure)
+import Data.Monoid ((<>))
 
 import Control.Monad.Reader
 import Data.Aeson
@@ -36,7 +38,7 @@ genCase fp maf = do
         Just bs -> liftIO $
             case maf of
                 Nothing -> LB8.putStrLn bs
-                Just af -> LB.appendFile af bs
+                Just af -> LB.appendFile af $ bs <> "\n"
 
 die :: MonadIO m => String -> m a
 die err = liftIO $ do
