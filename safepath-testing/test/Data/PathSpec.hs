@@ -165,6 +165,15 @@ spec = do
         it "produces valid paths when it succeeds" $ do
             producesValidsOnValids2 (</>)
 
+        it "is an associative operation" $ do
+            associativeOnValids (</>)
+
+        it "Has a left identity: the empty path" $ do
+            leftIdentityOnValid (</>) emptyPath
+
+        it "Has a right identity: the empty path" $ do
+            rightIdentityOnValid (</>) emptyPath
+
     describe "<.>" $ do
         it "produces valid paths when it succeeds" $ do
             producesValidsOnValids2 (<.>)

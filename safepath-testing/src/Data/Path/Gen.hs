@@ -38,7 +38,7 @@ instance GenValidity Extension where
 
 toAbsPathGen :: Gen (FilePath, RelPath) -> Gen (FilePath, AbsPath)
 toAbsPathGen gen = do
-    (fp, path) <- gen `suchThat` (not . emptyPath . snd)
+    (fp, path) <- gen `suchThat` (not . isEmptyPath . snd)
     return ('/':fp, unsafePathTypeCoerse path)
 
 genRelPathSinglePieceFilePath :: Gen (FilePath, RelPath)

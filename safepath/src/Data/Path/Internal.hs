@@ -93,13 +93,15 @@ emptyLastPathPiece :: LastPathPiece -> Bool
 emptyLastPathPiece (LastPathPiece "") = True
 emptyLastPathPiece _ = False
 
-emptyPath :: Path rel -> Bool
-emptyPath (Path [] (LastPathPiece "") []) = True
-emptyPath _ = False
+emptyPath :: Path rel
+emptyPath = (Path [] (LastPathPiece "") [])
+
+isEmptyPath :: Path rel -> Bool
+isEmptyPath p = p == emptyPath
 
 safeRelPath :: FilePath -> Maybe RelPath
 safeRelPath [] = Nothing
-safeRelPath ['.'] = Just $ Path [] (LastPathPiece "") []
+safeRelPath ['.'] = Just emptyPath
 safeRelPath ('/':_) = Nothing
 safeRelPath fp = do
     let rawPieces = filter (not . T.null) $ T.split (== '/') $ T.pack fp
@@ -125,7 +127,7 @@ unsafeRelPathError
 
 safeAbsPath :: FilePath -> Maybe AbsPath
 safeAbsPath [] = Nothing
-safeAbsPath ['/'] = Just $ Path [] (LastPathPiece "") []
+safeAbsPath ['/'] = Just emptyPath
 safeAbsPath ('/':fp) = unsafePathTypeCoerse <$> safeRelPath fp
 safeAbsPath _ = Nothing
 
@@ -171,9 +173,9 @@ unsafePathTypeCoerse (Path pieces lastPiece exts) = Path pieces lastPiece exts
 -- pathpiece before concatenation
 (</>) :: Path rel -> RelPath -> Path rel
 (</>) p1 p2
-    | emptyPath p1 && emptyPath p2 = p1
-    | emptyPath p2 = p1
-    | emptyPath p1 = unsafePathTypeCoerse p2
+    | isEmptyPath p1 && isEmptyPath p2 = emptyPath
+    | isEmptyPath p2 = p1
+    | isEmptyPath p1 = unsafePathTypeCoerse p2
     | otherwise = Path
         { pathPieces = pathPieces p1 ++ [combineLastAndExtensions (pathLastPiece p1) (pathExtensions p1)] ++ pathPieces p2
         , pathLastPiece = pathLastPiece p2
@@ -182,7 +184,7 @@ unsafePathTypeCoerse (Path pieces lastPiece exts) = Path pieces lastPiece exts
 
 (<.>) :: Path rel -> Extension -> Path rel
 (<.>) path extension
-    | emptyPath path = path
+    | isEmptyPath path = path
     | otherwise = path
     { pathExtensions = pathExtensions path ++ [extension]
     }
