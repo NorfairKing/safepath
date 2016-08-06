@@ -1,5 +1,13 @@
 module Data.Path
-    ( Path() -- Opaque path on purpose
+    ( AbsPath
+    , RelPath
+    , Path() -- Opaque path on purpose
+
+    , safeRelPath
+    , safeAbsPath
+
+    , (</>)
+    , (<.>)
     ) where
 
 import Data.Path.Internal
