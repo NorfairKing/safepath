@@ -31,17 +31,6 @@ spec :: Spec
 spec = do
     genSpec
 
-    describe "constructValid" $ do
-        it "produces valid paths when it succeeds" $ do
-            validIfSucceeds constructValid
-
-    describe "constructValidUnsafe" $ do
-        it "produces valid paths when it does not crash" $ do
-            forAll genUnchecked $ \inp ->
-                if isValid inp
-                then constructValidUnsafe (Just inp) `shouldBe` inp
-                else evaluate (constructValidUnsafe (Just inp)) `shouldThrow` anyErrorCall
-
     describe "safeRelPath" $ do
         it "produces valid paths when it succeeds" $ do
             validIfSucceedsOnGen safeRelPath arbitrary
@@ -163,22 +152,26 @@ spec = do
         it "produces valid pathpieces on valids" $ do
             producesValidsOnValids2 combineLastAndExtensions
 
-    describe "</>" $ do
+    describe "joinAbs" $ do
         it "produces valid paths when it succeeds" $ do
-            producesValidsOnValids2 (</>)
+            producesValidsOnValids2 joinAbs
 
-    describe "<.>" $ do
+    describe "joinRel" $ do
         it "produces valid paths when it succeeds" $ do
-            producesValidsOnValids2 (<.>)
+            producesValidsOnValids2 joinRel
+
+    describe "addExtRel" $ do
+        it "produces valid paths when it succeeds" $ do
+            producesValidsOnValids2 addExtRel
 
     blackboxSpec
 
 genSpec :: Spec
 genSpec = describe "GenSpec" $ do
-    arbitrarySpec   (Proxy :: Proxy (Path Absolute))
-    genValiditySpec (Proxy :: Proxy (Path Absolute))
-    arbitrarySpec   (Proxy :: Proxy (Path Relative))
-    genValiditySpec (Proxy :: Proxy (Path Relative))
+    arbitrarySpec   (Proxy :: Proxy AbsPath)
+    genValiditySpec (Proxy :: Proxy AbsPath)
+    arbitrarySpec   (Proxy :: Proxy RelPath)
+    genValiditySpec (Proxy :: Proxy RelPath)
     arbitrarySpec   (Proxy :: Proxy PathPiece)
     genValiditySpec (Proxy :: Proxy PathPiece)
     arbitrarySpec   (Proxy :: Proxy LastPathPiece)
@@ -186,10 +179,10 @@ genSpec = describe "GenSpec" $ do
     arbitrarySpec   (Proxy :: Proxy Extension)
     genValiditySpec (Proxy :: Proxy Extension)
 
-    customJSONSanity (Proxy :: Proxy (TestCase Absolute))
-    customJSONSanity (Proxy :: Proxy (TestCase Relative))
-    customJSONSanity (Proxy :: Proxy (Path Absolute))
-    customJSONSanity (Proxy :: Proxy (Path Relative))
+    customJSONSanity (Proxy :: Proxy AbsTestCase)
+    customJSONSanity (Proxy :: Proxy RelTestCase)
+    customJSONSanity (Proxy :: Proxy AbsPath)
+    customJSONSanity (Proxy :: Proxy RelPath)
     customJSONSanity (Proxy :: Proxy LastPathPiece)
     customJSONSanity (Proxy :: Proxy PathPiece)
     customJSONSanity (Proxy :: Proxy Extension)
@@ -219,22 +212,22 @@ blackboxSpec = describe "Black-box tests" $ do
     describe "Parse tests" $ withExistingContentsLB "data/cases.txt" $ \lbs ->
         forM_ (LB8.lines lbs) $ \line ->
             case decode line of
-                Just (TestCase fp relpath) ->
+                Just (RelTestCase fp relpath) ->
                     it fp $ safeRelPath fp `shouldBe` Just relpath
                 Nothing ->
                     case decode line of
-                        Just (TestCase fp abspath) ->
+                        Just (AbsTestCase fp abspath) ->
                             it fp $ safeAbsPath fp `shouldBe` Just abspath
                         Nothing -> return ()
 
     describe "Render tests" $ withExistingContentsLB "data/cases.txt" $ \lbs ->
         forM_ (LB8.lines lbs) $ \line ->
             case decode line of
-                Just (TestCase fp relpath) ->
+                Just (RelTestCase fp relpath) ->
                     it fp $ toRelFilePath relpath `shouldBe` fp
                 Nothing ->
                     case decode line of
-                        Just (TestCase fp abspath) ->
+                        Just (AbsTestCase fp abspath) ->
                             it fp $ toAbsFilePath abspath `shouldBe` fp
                         Nothing -> return ()
 

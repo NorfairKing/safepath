@@ -76,8 +76,8 @@ die err = liftIO $ do
     exitFailure
 
 genRelPathCase :: RelPath -> LB.ByteString
-genRelPathCase p = encode $ TestCase (toRelFilePath p) p
+genRelPathCase p = encode $ RelTestCase (toRelFilePath p) p
 
 genAbsPathCase :: AbsPath -> LB.ByteString
-genAbsPathCase p = encode $ TestCase (toAbsFilePath p) p
+genAbsPathCase p = encode $ AbsTestCase (toAbsFilePath p) p
 

@@ -11,11 +11,20 @@ import qualified Data.Text as T
 
 import Data.Path.Internal
 
-instance Arbitrary (Path rel) where
+instance Arbitrary AbsPath where
     arbitrary = genValid
 
-instance GenValidity (Path rel) where
-    genUnchecked = Path
+instance GenValidity AbsPath where
+    genUnchecked = AbsPath
+        <$> genUnchecked
+        <*> genUnchecked
+        <*> genUnchecked
+
+instance Arbitrary RelPath where
+    arbitrary = genValid
+
+instance GenValidity RelPath where
+    genUnchecked = RelPath
         <$> genUnchecked
         <*> genUnchecked
         <*> genUnchecked
@@ -40,14 +49,14 @@ instance GenValidity Extension where
 
 toAbsPathGen :: Gen (FilePath, RelPath) -> Gen (FilePath, AbsPath)
 toAbsPathGen gen = do
-    (fp, path) <- gen
-    return ('/':fp, unsafePathTypeCoerse path)
+    (fp, RelPath pp lp es) <- gen
+    return ('/':fp, AbsPath pp lp es)
 
 genRelPathSinglePieceFilePath :: Gen (FilePath, RelPath)
 genRelPathSinglePieceFilePath = do
     piece <- genValid
     let fp = renderLastPiece piece
-        path = Path [] (LastPathPiece $ PathPiece $ T.pack fp) []
+        path = RelPath [] (LastPathPiece $ PathPiece $ T.pack fp) []
     return (fp, path)
 
 genAbsPathSinglePieceFilePath :: Gen (FilePath, AbsPath)
@@ -55,8 +64,8 @@ genAbsPathSinglePieceFilePath = toAbsPathGen genRelPathSinglePieceFilePath
 
 genRelPathNoExtensions :: Gen (FilePath, RelPath)
 genRelPathNoExtensions = do
-    Path pieces lp _ <- genValid
-    let path = Path pieces lp []
+    RelPath pieces lp _ <- genValid
+    let path = RelPath pieces lp []
         fp = toRelFilePath path
     return (fp, path)
 

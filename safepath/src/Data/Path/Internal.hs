@@ -1,4 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -8,7 +7,7 @@ module Data.Path.Internal where
 import Data.Monoid ((<>))
 import Data.Typeable
 import GHC.Generics
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, fromMaybe)
 import Data.String (IsString(..))
 import Data.List (intercalate)
 import Data.Data
@@ -19,36 +18,31 @@ import Safe
 
 import Data.Validity
 
-type AbsPath = Path Absolute
-type RelPath = Path Relative
+data AbsPath
+    = AbsPath
+        [PathPiece]
+        LastPathPiece
+        [Extension]
+    deriving (Show, Eq, Generic, Data, Typeable)
 
-data Path rel
-    = Path
-    { pathPieces      :: [PathPiece]
-    , pathLastPiece   :: LastPathPiece
-    , pathExtensions  :: [Extension]
-    } deriving (Show, Eq, Generic, Data, Typeable)
+instance Validity AbsPath where
+    isValid (AbsPath pp lp es)
+        =  isValid pp
+        && isValid lp
+        && isValid es
 
--- Choose nicer ways of printing if the context allows the compiler to figure
--- out what kind of path it is.
+data RelPath
+    = RelPath
+        [PathPiece]
+        LastPathPiece
+        [Extension]
+    deriving (Show, Eq, Generic, Data, Typeable)
 
-instance Show (Path Relative) where
-    show = toRelFilePath
-
-instance Show (Path Absolute) where
-    show = toAbsFilePath
-
-data Absolute = Absolute
-    deriving (Generic, Data, Typeable)
-
-data Relative = Relative
-    deriving (Generic, Data, Typeable)
-
-instance Validity (Path rel) where
-    isValid Path{..}
-        =  isValid pathPieces
-        && isValid pathLastPiece
-        && isValid pathExtensions
+instance Validity RelPath where
+    isValid (RelPath pp lp es)
+        =  isValid pp
+        && isValid lp
+        && isValid es
 
 newtype PathPiece = PathPiece Text
     deriving (Show, Eq, Generic, Data, Typeable)
@@ -69,12 +63,17 @@ instance Validity Extension where
     isValid (Extension t) = not (T.null t) && not (containsDot t) && not (containsSeparator t)
 
 -- | ONLY for @OverloadedStrings@
-instance IsString (Path Absolute) where
+instance IsString AbsPath where
     fromString = unsafeAbsPathError
 
 -- | ONLY for @OverloadedStrings@
-instance IsString (Path Relative) where
+instance IsString RelPath where
     fromString = unsafeRelPathError
+
+class Path p where
+    join    :: p -> RelPath -> p
+    addext  :: p -> Extension -> p
+
 
 containsSatisfied :: (Char -> Bool) -> Text -> Bool
 containsSatisfied func = isJust . T.find func
@@ -84,17 +83,6 @@ containsSeparator = containsSatisfied (== '/')
 
 containsDot :: Text -> Bool
 containsDot = containsSatisfied (== '.')
-
-
-constructValid :: Path rel -> Maybe (Path rel)
-constructValid p = if isValid p then Just p else Nothing
-
-constructValidUnsafe :: Maybe (Path rel) -> Path rel
-constructValidUnsafe Nothing = error "unable to make a path out of nothing"
-constructValidUnsafe (Just p) =
-    case constructValid p of
-        Nothing -> error $ show p ++ " does not make for a valid Path."
-        Just p -> p
 
 safeRelPath :: FilePath -> Maybe RelPath
 safeRelPath ('/':_) = Nothing
@@ -106,7 +94,7 @@ safeRelPath fp = do
     let pieces = map PathPiece firstPieces
     let lastPiece = LastPathPiece $ PathPiece lastPieceStr
     let exts = map Extension safeExts
-    return $ Path pieces lastPiece exts
+    return $ RelPath pieces lastPiece exts
   where
     unsnocMay :: [a] -> Maybe ([a], a)
     unsnocMay as = (,) <$> initMay as <*> lastMay as
@@ -116,24 +104,27 @@ safeRelPath fp = do
 
 
 unsafeRelPathError :: FilePath -> RelPath
-unsafeRelPathError = constructValidUnsafe . safeRelPath
+unsafeRelPathError = constructValidUnsafe . fromMaybe (error "invalid relative path") . safeRelPath
 
 safeAbsPath :: FilePath -> Maybe AbsPath
 safeAbsPath [] = Nothing
-safeAbsPath ('/':fp) = unsafePathTypeCoerse <$> safeRelPath fp
+safeAbsPath ('/':fp) = do
+    RelPath ps lp es <-safeRelPath fp
+    return $ AbsPath ps lp es
 safeAbsPath _ = Nothing
 
 unsafeAbsPathError :: FilePath -> AbsPath
-unsafeAbsPathError = constructValidUnsafe . safeAbsPath
+unsafeAbsPathError = constructValidUnsafe . fromMaybe (error "invalid absolute path") . safeAbsPath
 
 toRelFilePath :: RelPath -> FilePath
-toRelFilePath Path{..}
-    =  intercalate "/" (map renderPiece $ pathPieces ++ [lpp])
-    ++ renderExtensions pathExtensions
-  where (LastPathPiece lpp) = pathLastPiece
+toRelFilePath (RelPath pp lp es)
+    =  intercalate "/" (map renderPiece $ pp ++ [lpp])
+    ++ renderExtensions es
+  where (LastPathPiece lpp) = lp
 
 toAbsFilePath :: AbsPath -> FilePath
-toAbsFilePath = ('/':) . toRelFilePath . unsafePathTypeCoerse
+toAbsFilePath (AbsPath ps lp es) = ('/':) . toRelFilePath $ rp
+  where rp = RelPath ps lp es
 
 lastPieceToPiece :: LastPathPiece -> PathPiece
 lastPieceToPiece (LastPathPiece p) = p
@@ -155,22 +146,32 @@ combineLastAndExtensions :: LastPathPiece -> [Extension] -> PathPiece
 combineLastAndExtensions (LastPathPiece (PathPiece lpp)) es
     = PathPiece $ lpp <> T.pack (renderExtensions es)
 
-unsafePathTypeCoerse :: Path rel -> Path rel'
-unsafePathTypeCoerse (Path pieces lastPiece exts) = Path pieces lastPiece exts
+joinRel :: RelPath -> RelPath -> RelPath
+joinRel (RelPath ps1 lp1 es1) (RelPath ps2 lp2 es2)
+    = RelPath
+    (ps1 ++ [combineLastAndExtensions lp1 es1] ++ ps2)
+    lp2
+    es2
 
--- | If the first path has extensions, they will be appended to the last
--- pathpiece before concatenation
-(</>) :: Path rel -> RelPath -> Path rel
-(</>) p1 p2
-    = Path
-    { pathPieces = pathPieces p1 ++ [combineLastAndExtensions (pathLastPiece p1) (pathExtensions p1)] ++ pathPieces p2
-    , pathLastPiece = pathLastPiece p2
-    , pathExtensions = pathExtensions p2
-    }
 
-(<.>) :: Path rel -> Extension -> Path rel
-(<.>) path extension
-    = path
-    { pathExtensions = pathExtensions path ++ [extension]
-    }
+joinAbs :: AbsPath -> RelPath -> AbsPath
+joinAbs (AbsPath ps1 lp1 es1) (RelPath ps2 lp2 es2)
+    = AbsPath
+    (ps1 ++ [combineLastAndExtensions lp1 es1] ++ ps2)
+    lp2
+    es2
+
+addExtRel :: RelPath -> Extension -> RelPath
+addExtRel (RelPath ps lp es) extension
+    = RelPath ps lp (es ++ [extension])
+
+addExtAbs :: AbsPath -> Extension -> AbsPath
+addExtAbs (AbsPath ps lp es) extension
+    = AbsPath ps lp (es ++ [extension])
+
+(</>) :: Path path => path -> RelPath -> path
+(</>) = join
+
+(<.>) :: Path path => path -> Extension -> path
+(<.>) = addext
 

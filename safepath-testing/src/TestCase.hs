@@ -15,17 +15,23 @@ import Data.Path.IO ()
 import Data.Path.Gen ()
 
 
-data TestCase rel = TestCase FilePath (Path rel)
+data RelTestCase = RelTestCase FilePath RelPath
     deriving (Show, Eq, Generic, Data, Typeable)
 
-instance FromJSON (TestCase Absolute)
-instance ToJSON   (TestCase Absolute)
+instance FromJSON RelTestCase
+instance ToJSON   RelTestCase
 
-instance FromJSON (TestCase Relative)
-instance ToJSON   (TestCase Relative)
+instance Arbitrary RelTestCase where
+    arbitrary = RelTestCase <$> arbitrary <*> genUnchecked
 
-instance Arbitrary (TestCase rel) where
-    arbitrary = TestCase <$> arbitrary <*> genUnchecked
+data AbsTestCase = AbsTestCase FilePath AbsPath
+    deriving (Show, Eq, Generic, Data, Typeable)
+
+instance FromJSON AbsTestCase
+instance ToJSON   AbsTestCase
+
+instance Arbitrary AbsTestCase where
+    arbitrary = AbsTestCase <$> arbitrary <*> genUnchecked
 
 
 
