@@ -3,8 +3,8 @@ module Data.Path
     , RelPath
     , Path() -- Opaque path on purpose
 
-    , safeRelPath
-    , safeAbsPath
+    , relpath
+    , abspath
 
     , (</>)
     , (<.>)

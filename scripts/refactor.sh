@@ -40,7 +40,7 @@ then
 fi
 
 
-find src -type f -name "*.hs" -exec sed -i "s/\b$from\b/$to/g" {} \;
+find . -type f -name "*.hs" -exec sed -i "s/\b$from\b/$to/g" {} \;
 
 if promptY "make a commit out of it?"
 then

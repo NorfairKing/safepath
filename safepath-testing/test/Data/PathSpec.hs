@@ -32,15 +32,15 @@ spec = do
     genSpec
     blackboxSpec
 
-    describe "safeRelPath" $ do
+    describe "relpath" $ do
         it "produces valid paths when it succeeds" $ do
-            validIfSucceedsOnGen safeRelPath arbitrary
+            validIfSucceedsOnGen relpath arbitrary
 
         it "fails to parse valid absolute paths" $ do
             forAll genValid $ \abspath ->
-                safeRelPath (toAbsFilePath abspath) `shouldBe` Nothing
+                relpath (toAbsFilePath abspath) `shouldBe` Nothing
 
-        let works gen = forAll gen $ \(fp, path) -> safeRelPath fp `shouldBe` Just path
+        let works gen = forAll gen $ \(fp, path) -> relpath fp `shouldBe` Just path
         it "succesfully correctly parses single-piece filepaths as generated" $ do
             works genRelPathSinglePieceFilePath
 
@@ -49,25 +49,25 @@ spec = do
 
         it "succeeds on these black-box tests" $ do
             forM_ relativePathCases $ \(inp, path) ->
-                safeRelPath inp `shouldBe` Just path
+                relpath inp `shouldBe` Just path
 
     describe "unsafeRelPathError" $ do
-        it "behaves just like safeRelPath except for errors" $ do
+        it "behaves just like relpath except for errors" $ do
             forAll uncheckedPath $ \fp ->
-                case safeRelPath fp of
+                case relpath fp of
                     Nothing -> evaluate (unsafeRelPathError fp) `shouldThrow` anyErrorCall
                     Just res -> unsafeRelPathError fp `shouldBe` res
 
 
-    describe "safeAbsPath" $ do
+    describe "abspath" $ do
         it "produces valid paths when it succeeds" $ do
-            validIfSucceedsOnGen safeRelPath arbitrary
+            validIfSucceedsOnGen relpath arbitrary
 
         it "fails to parse valid relative paths" $ do
             forAll genValid $ \relpath ->
-                safeAbsPath (toRelFilePath relpath) `shouldBe` Nothing
+                abspath (toRelFilePath relpath) `shouldBe` Nothing
 
-        let works gen = forAll gen $ \(fp, path) -> safeAbsPath fp `shouldBe` Just path
+        let works gen = forAll gen $ \(fp, path) -> abspath fp `shouldBe` Just path
         it "succesfully correctly parses single-piece filepaths as generated" $ do
             works genAbsPathSinglePieceFilePath
 
@@ -76,16 +76,16 @@ spec = do
 
         it "succeeds on these regression tests" $ do
             forM_ absolutePathCases $ \(inp, path) ->
-                safeAbsPath inp `shouldBe` Just path
+                abspath inp `shouldBe` Just path
 
         it "fails on these regression tests" $ do
             forM_ invalidAbsolutePaths $ \inp ->
-                safeAbsPath inp `shouldBe` Nothing
+                abspath inp `shouldBe` Nothing
 
     describe "unsafeAbsPathError" $ do
-        it "behaves just like safeRelPath except for errors" $ do
+        it "behaves just like relpath except for errors" $ do
             forAll uncheckedPath $ \fp ->
-                case safeRelPath fp of
+                case relpath fp of
                     Nothing -> evaluate (unsafeRelPathError fp) `shouldThrow` anyErrorCall
                     Just res -> unsafeRelPathError fp `shouldBe` res
 
@@ -96,7 +96,7 @@ spec = do
 
         it "fails on these regression tests" $ do
             forM_ invalidRelativePaths $ \inp ->
-                safeRelPath inp `shouldBe` Nothing
+                relpath inp `shouldBe` Nothing
 
         let works gen = forAll gen $ \(fp, path) -> toRelFilePath path `shouldBe` fp
         it "succesfully correctly outputs single-piece relative filepaths as generated" $ do
@@ -105,25 +105,25 @@ spec = do
         it "succesfully correctly outputs relative filepaths without extensions as generated" $ do
             works genRelPathNoExtensions
 
-        it "is the inverse of the succeeding runs of safeRelPath when starting with a single-piece fp" $ do
-            inverseFunctionsIfSecondSucceedsOnGen toRelFilePath safeRelPath $ snd <$> genRelPathSinglePieceFilePath
+        it "is the inverse of the succeeding runs of relpath when starting with a single-piece fp" $ do
+            inverseFunctionsIfSecondSucceedsOnGen toRelFilePath relpath $ snd <$> genRelPathSinglePieceFilePath
 
-        it "is the inverse of the succeeding runs of safeRelPath when starting with a fp without extensions" $ do
-            inverseFunctionsIfSecondSucceedsOnGen toRelFilePath safeRelPath $ snd <$> genRelPathNoExtensions
+        it "is the inverse of the succeeding runs of relpath when starting with a fp without extensions" $ do
+            inverseFunctionsIfSecondSucceedsOnGen toRelFilePath relpath $ snd <$> genRelPathNoExtensions
 
-        it "is the inverse of the succeeding runs of safeRelPath when starting with a fp" $ do
+        it "is the inverse of the succeeding runs of relpath when starting with a fp" $ do
             pending
-            -- inverseFunctionsIfSecondSucceeds toRelFilePath safeRelPath
+            -- inverseFunctionsIfSecondSucceeds toRelFilePath relpath
 
-        it "is the inverse of the succeeding runs of safeRelPath when starting with a single-piece valid relpath" $ do
-            inverseFunctionsIfFirstSucceedsOnGen safeRelPath toRelFilePath $ fst <$> genRelPathSinglePieceFilePath
+        it "is the inverse of the succeeding runs of relpath when starting with a single-piece valid relpath" $ do
+            inverseFunctionsIfFirstSucceedsOnGen relpath toRelFilePath $ fst <$> genRelPathSinglePieceFilePath
 
-        it "is the inverse of the succeeding runs of safeRelPath when starting with a valid relpath without extensions" $ do
-            inverseFunctionsIfFirstSucceedsOnGen safeRelPath toRelFilePath $ fst <$> genRelPathNoExtensions
+        it "is the inverse of the succeeding runs of relpath when starting with a valid relpath without extensions" $ do
+            inverseFunctionsIfFirstSucceedsOnGen relpath toRelFilePath $ fst <$> genRelPathNoExtensions
 
-        it "is the inverse of the succeeding runs of safeRelPath when starting with a valid relpath" $ do
+        it "is the inverse of the succeeding runs of relpath when starting with a valid relpath" $ do
             pending
-            -- inverseFunctionsIfFirstSucceedsOnGen safeRelPath toRelFilePath arbitrary
+            -- inverseFunctionsIfFirstSucceedsOnGen relpath toRelFilePath arbitrary
 
     describe "toAbsFilePath" $ do
         it "succeeds on these regression tests" $ do
@@ -137,25 +137,25 @@ spec = do
         it "succesfully correctly outputs absolute filepaths without extensions as generated" $ do
             works genAbsPathNoExtensions
 
-        it "is the inverse of the succeeding runs of safeAbsPath when starting with a single-piece fp" $ do
-            inverseFunctionsIfSecondSucceedsOnGen toAbsFilePath safeAbsPath $ snd <$> genAbsPathSinglePieceFilePath
+        it "is the inverse of the succeeding runs of abspath when starting with a single-piece fp" $ do
+            inverseFunctionsIfSecondSucceedsOnGen toAbsFilePath abspath $ snd <$> genAbsPathSinglePieceFilePath
 
-        it "is the inverse of the succeeding runs of safeAbsPath when starting with a fp without extensions" $ do
-            inverseFunctionsIfSecondSucceedsOnGen toAbsFilePath safeAbsPath $ snd <$> genAbsPathNoExtensions
+        it "is the inverse of the succeeding runs of abspath when starting with a fp without extensions" $ do
+            inverseFunctionsIfSecondSucceedsOnGen toAbsFilePath abspath $ snd <$> genAbsPathNoExtensions
 
-        it "is the inverse of the succeeding runs of safeAbsPath when starting with a fp" $ do
+        it "is the inverse of the succeeding runs of abspath when starting with a fp" $ do
             pending
-            -- inverseFunctionsIfSecondSucceeds toAbsFilePath safeAbsPath
+            -- inverseFunctionsIfSecondSucceeds toAbsFilePath abspath
 
-        it "is the inverse of the succeeding runs of safeAbsPath when starting with a single-piece valid abspath" $ do
-            inverseFunctionsIfFirstSucceedsOnGen safeAbsPath toAbsFilePath $ fst <$> genAbsPathSinglePieceFilePath
+        it "is the inverse of the succeeding runs of abspath when starting with a single-piece valid abspath" $ do
+            inverseFunctionsIfFirstSucceedsOnGen abspath toAbsFilePath $ fst <$> genAbsPathSinglePieceFilePath
 
-        it "is the inverse of the succeeding runs of safeAbsPath when starting with a valid abspath without extensions" $ do
-            inverseFunctionsIfFirstSucceedsOnGen safeAbsPath toAbsFilePath $ fst <$> genAbsPathNoExtensions
+        it "is the inverse of the succeeding runs of abspath when starting with a valid abspath without extensions" $ do
+            inverseFunctionsIfFirstSucceedsOnGen abspath toAbsFilePath $ fst <$> genAbsPathNoExtensions
 
-        it "is the inverse of the succeeding runs of safeRelPath when starting with a valid abspath" $ do
+        it "is the inverse of the succeeding runs of relpath when starting with a valid abspath" $ do
             pending
-            -- inverseFunctionsIfFirstSucceedsOnGen safeAbsPath toAbsFilePath arbitrary
+            -- inverseFunctionsIfFirstSucceedsOnGen abspath toAbsFilePath arbitrary
 
     describe "combineLastAndExtensions" $ do
         it "produces valid pathpieces on valids" $ do
@@ -224,12 +224,12 @@ blackboxSpec = describe "Black-box tests" $ do
     describe "Parse tests" $ withExistingContentsLB "data/cases.txt" $ \lbs ->
         forM_ (LB8.lines lbs) $ \line ->
             case decode line of
-                Just (TestCase fp relpath) ->
-                    it fp $ safeRelPath fp `shouldBe` Just relpath
+                Just (TestCase fp rp) ->
+                    it fp $ relpath fp `shouldBe` Just rp
                 Nothing ->
                     case decode line of
-                        Just (TestCase fp abspath) ->
-                            it fp $ safeAbsPath fp `shouldBe` Just abspath
+                        Just (TestCase fp ap) ->
+                            it fp $ abspath fp `shouldBe` Just ap
                         Nothing -> return ()
 
     describe "Render tests" $ withExistingContentsLB "data/cases.txt" $ \lbs ->

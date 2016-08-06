@@ -99,11 +99,11 @@ emptyPath = (Path [] (LastPathPiece "") [])
 isEmptyPath :: Path rel -> Bool
 isEmptyPath p = p == emptyPath
 
-safeRelPath :: FilePath -> Maybe RelPath
-safeRelPath [] = Nothing
-safeRelPath ['.'] = Just emptyPath
-safeRelPath ('/':_) = Nothing
-safeRelPath fp = do
+relpath :: FilePath -> Maybe RelPath
+relpath [] = Nothing
+relpath ['.'] = Just emptyPath
+relpath ('/':_) = Nothing
+relpath fp = do
     let rawPieces = filter (not . T.null) $ T.split (== '/') $ T.pack fp
     (firstPieces, lastRawPiece) <- unsnocMay rawPieces
     let rawExts = filter (not . T.null) $ T.split (== '.') lastRawPiece
@@ -123,19 +123,19 @@ unsafeRelPathError :: FilePath -> RelPath
 unsafeRelPathError
     = constructValidUnsafe
     . fromMaybe (error "Invalid path")
-    . safeRelPath
+    . relpath
 
-safeAbsPath :: FilePath -> Maybe AbsPath
-safeAbsPath [] = Nothing
-safeAbsPath ['/'] = Just emptyPath
-safeAbsPath ('/':fp) = unsafePathTypeCoerse <$> safeRelPath fp
-safeAbsPath _ = Nothing
+abspath :: FilePath -> Maybe AbsPath
+abspath [] = Nothing
+abspath ['/'] = Just emptyPath
+abspath ('/':fp) = unsafePathTypeCoerse <$> relpath fp
+abspath _ = Nothing
 
 unsafeAbsPathError :: FilePath -> AbsPath
 unsafeAbsPathError
     = constructValidUnsafe
     . fromMaybe (error "Invalid path")
-    . safeAbsPath
+    . abspath
 
 toRelFilePath :: RelPath -> FilePath
 toRelFilePath (Path [] (LastPathPiece "") []) = "."

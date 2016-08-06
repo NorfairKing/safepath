@@ -57,10 +57,10 @@ listDirectoryRecursive dir = do
 
 genCase :: FilePath -> Maybe FilePath -> Configured ()
 genCase fp maf = do
-    let mtc = case safeRelPath fp of
+    let mtc = case relpath fp of
             Just relpath -> Just $ genRelPathCase relpath
             Nothing ->
-                case safeAbsPath fp of
+                case abspath fp of
                     Just abspath -> Just $ genAbsPathCase abspath
                     Nothing -> Nothing
     case mtc of
