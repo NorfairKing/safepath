@@ -189,3 +189,10 @@ unsafePathTypeCoerse (Path pieces lastPiece exts) = Path pieces lastPiece exts
     { pathExtensions = pathExtensions path ++ [extension]
     }
 
+ground :: AbsPath -> FilePath -> Maybe AbsPath
+ground ap fp = case abspath fp of
+    Just a -> Just a
+    Nothing -> case relpath fp of
+        Just r -> Just $ ap </> r
+        Nothing -> Nothing
+

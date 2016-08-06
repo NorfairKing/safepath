@@ -8,6 +8,10 @@ module Data.Path
 
     , (</>)
     , (<.>)
+    , ground
+
+    , toAbsFilePath
+    , toRelFilePath
     ) where
 
 import Data.Path.Internal
