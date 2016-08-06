@@ -2,13 +2,14 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE IncoherentInstances #-}
 module Data.Path.Internal where
 
 import Data.Monoid ((<>))
 import Data.Typeable
 import GHC.Generics
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, fromMaybe)
 import Data.String (IsString(..))
 import Data.List (intercalate)
 import Data.Data
@@ -49,6 +50,9 @@ instance Validity (Path rel) where
         =  isValid pathPieces
         && isValid pathLastPiece
         && isValid pathExtensions
+        && (not (T.null lt) || (null pathPieces && null pathExtensions))
+      where
+        (LastPathPiece lt) = pathLastPiece
 
 newtype PathPiece = PathPiece Text
     deriving (Show, Eq, Generic, Data, Typeable)
@@ -56,11 +60,11 @@ newtype PathPiece = PathPiece Text
 instance Validity PathPiece where
     isValid (PathPiece t) = not (T.null t) && not (containsSeparator t)
 
-newtype LastPathPiece = LastPathPiece PathPiece
+newtype LastPathPiece = LastPathPiece Text
     deriving (Show, Eq, Generic, Data, Typeable)
 
 instance Validity LastPathPiece where
-    isValid (LastPathPiece pp@(PathPiece t)) = isValid pp && not (containsDot t)
+    isValid (LastPathPiece t) = not (containsSeparator t) && not (containsDot t)
 
 newtype Extension = Extension Text
     deriving (Show, Eq, Generic, Data, Typeable)
@@ -85,18 +89,17 @@ containsSeparator = containsSatisfied (== '/')
 containsDot :: Text -> Bool
 containsDot = containsSatisfied (== '.')
 
+emptyLastPathPiece :: LastPathPiece -> Bool
+emptyLastPathPiece (LastPathPiece "") = True
+emptyLastPathPiece _ = False
 
-constructValid :: Path rel -> Maybe (Path rel)
-constructValid p = if isValid p then Just p else Nothing
-
-constructValidUnsafe :: Maybe (Path rel) -> Path rel
-constructValidUnsafe Nothing = error "unable to make a path out of nothing"
-constructValidUnsafe (Just p) =
-    case constructValid p of
-        Nothing -> error $ show p ++ " does not make for a valid Path."
-        Just p -> p
+emptyPath :: Path rel -> Bool
+emptyPath (Path [] (LastPathPiece "") []) = True
+emptyPath _ = False
 
 safeRelPath :: FilePath -> Maybe RelPath
+safeRelPath [] = Nothing
+safeRelPath ['.'] = Just $ Path [] (LastPathPiece "") []
 safeRelPath ('/':_) = Nothing
 safeRelPath fp = do
     let rawPieces = filter (not . T.null) $ T.split (== '/') $ T.pack fp
@@ -104,7 +107,7 @@ safeRelPath fp = do
     let rawExts = filter (not . T.null) $ T.split (== '.') lastRawPiece
     (lastPieceStr, safeExts) <- unconsMay rawExts
     let pieces = map PathPiece firstPieces
-    let lastPiece = LastPathPiece $ PathPiece lastPieceStr
+    let lastPiece = LastPathPiece lastPieceStr
     let exts = map Extension safeExts
     return $ Path pieces lastPiece exts
   where
@@ -114,35 +117,39 @@ safeRelPath fp = do
     unconsMay [] = Nothing
     unconsMay (a:as) = Just (a, as)
 
-
 unsafeRelPathError :: FilePath -> RelPath
-unsafeRelPathError = constructValidUnsafe . safeRelPath
+unsafeRelPathError
+    = constructValidUnsafe
+    . fromMaybe (error "Invalid path")
+    . safeRelPath
 
 safeAbsPath :: FilePath -> Maybe AbsPath
 safeAbsPath [] = Nothing
+safeAbsPath ['/'] = Just $ Path [] (LastPathPiece "") []
 safeAbsPath ('/':fp) = unsafePathTypeCoerse <$> safeRelPath fp
 safeAbsPath _ = Nothing
 
 unsafeAbsPathError :: FilePath -> AbsPath
-unsafeAbsPathError = constructValidUnsafe . safeAbsPath
+unsafeAbsPathError
+    = constructValidUnsafe
+    . fromMaybe (error "Invalid path")
+    . safeAbsPath
 
 toRelFilePath :: RelPath -> FilePath
+toRelFilePath (Path [] (LastPathPiece "") []) = "."
 toRelFilePath Path{..}
-    =  intercalate "/" (map renderPiece $ pathPieces ++ [lpp])
+    =  intercalate "/" (map renderPiece pathPieces ++ [renderLastPiece pathLastPiece])
     ++ renderExtensions pathExtensions
-  where (LastPathPiece lpp) = pathLastPiece
 
 toAbsFilePath :: AbsPath -> FilePath
-toAbsFilePath = ('/':) . toRelFilePath . unsafePathTypeCoerse
-
-lastPieceToPiece :: LastPathPiece -> PathPiece
-lastPieceToPiece (LastPathPiece p) = p
+toAbsFilePath (Path [] (LastPathPiece "") []) = "/"
+toAbsFilePath p = ('/':) . toRelFilePath . unsafePathTypeCoerse $ p
 
 renderPiece :: PathPiece -> String
 renderPiece (PathPiece p) = T.unpack p
 
 renderLastPiece :: LastPathPiece -> String
-renderLastPiece = renderPiece . lastPieceToPiece
+renderLastPiece (LastPathPiece p) = T.unpack p
 
 renderExtension :: Extension -> String
 renderExtension (Extension e) = T.unpack e
@@ -152,25 +159,31 @@ renderExtensions [] = ""
 renderExtensions es = "." ++ intercalate "." (map renderExtension es)
 
 combineLastAndExtensions :: LastPathPiece -> [Extension] -> PathPiece
-combineLastAndExtensions (LastPathPiece (PathPiece lpp)) es
+combineLastAndExtensions (LastPathPiece lpp) es
     = PathPiece $ lpp <> T.pack (renderExtensions es)
 
 unsafePathTypeCoerse :: Path rel -> Path rel'
 unsafePathTypeCoerse (Path pieces lastPiece exts) = Path pieces lastPiece exts
 
+
+
 -- | If the first path has extensions, they will be appended to the last
 -- pathpiece before concatenation
 (</>) :: Path rel -> RelPath -> Path rel
 (</>) p1 p2
-    = Path
-    { pathPieces = pathPieces p1 ++ [combineLastAndExtensions (pathLastPiece p1) (pathExtensions p1)] ++ pathPieces p2
-    , pathLastPiece = pathLastPiece p2
-    , pathExtensions = pathExtensions p2
-    }
+    | emptyPath p1 && emptyPath p2 = p1
+    | emptyPath p2 = p1
+    | emptyPath p1 = unsafePathTypeCoerse p2
+    | otherwise = Path
+        { pathPieces = pathPieces p1 ++ [combineLastAndExtensions (pathLastPiece p1) (pathExtensions p1)] ++ pathPieces p2
+        , pathLastPiece = pathLastPiece p2
+        , pathExtensions = pathExtensions p2
+        }
 
 (<.>) :: Path rel -> Extension -> Path rel
 (<.>) path extension
-    = path
+    | emptyPath path = path
+    | otherwise = path
     { pathExtensions = pathExtensions path ++ [extension]
     }
 

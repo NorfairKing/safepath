@@ -7,8 +7,6 @@ import Test.QuickCheck
 import Data.GenValidity
 import Data.GenValidity.Text
 
-import qualified Data.Text as T
-
 import Data.Path.Internal
 
 instance Arbitrary (Path rel) where
@@ -30,7 +28,7 @@ instance Arbitrary LastPathPiece where
     arbitrary = genValid
 
 instance GenValidity LastPathPiece where
-    genUnchecked = LastPathPiece <$> genUnchecked
+    genUnchecked = LastPathPiece <$> genUncheckedText
 
 instance Arbitrary Extension where
     arbitrary = genValid
@@ -40,14 +38,14 @@ instance GenValidity Extension where
 
 toAbsPathGen :: Gen (FilePath, RelPath) -> Gen (FilePath, AbsPath)
 toAbsPathGen gen = do
-    (fp, path) <- gen
+    (fp, path) <- gen `suchThat` (not . emptyPath . snd)
     return ('/':fp, unsafePathTypeCoerse path)
 
 genRelPathSinglePieceFilePath :: Gen (FilePath, RelPath)
 genRelPathSinglePieceFilePath = do
-    piece <- genValid
-    let fp = renderLastPiece piece
-        path = Path [] (LastPathPiece $ PathPiece $ T.pack fp) []
+    lpp <- genValid
+    let path = Path [] lpp []
+    let fp = toRelFilePath path
     return (fp, path)
 
 genAbsPathSinglePieceFilePath :: Gen (FilePath, AbsPath)
@@ -62,10 +60,4 @@ genRelPathNoExtensions = do
 
 genAbsPathNoExtensions :: Gen (FilePath, AbsPath)
 genAbsPathNoExtensions = toAbsPathGen genRelPathNoExtensions
-
-
-
-
-
-
 

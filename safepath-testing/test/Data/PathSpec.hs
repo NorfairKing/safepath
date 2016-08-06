@@ -30,17 +30,7 @@ uncheckedPath = arbitrary
 spec :: Spec
 spec = do
     genSpec
-
-    describe "constructValid" $ do
-        it "produces valid paths when it succeeds" $ do
-            validIfSucceeds constructValid
-
-    describe "constructValidUnsafe" $ do
-        it "produces valid paths when it does not crash" $ do
-            forAll genUnchecked $ \inp ->
-                if isValid inp
-                then constructValidUnsafe (Just inp) `shouldBe` inp
-                else evaluate (constructValidUnsafe (Just inp)) `shouldThrow` anyErrorCall
+    blackboxSpec
 
     describe "safeRelPath" $ do
         it "produces valid paths when it succeeds" $ do
@@ -88,6 +78,10 @@ spec = do
             forM_ absolutePathCases $ \(inp, path) ->
                 safeAbsPath inp `shouldBe` Just path
 
+        it "fails on these regression tests" $ do
+            forM_ invalidAbsolutePaths $ \inp ->
+                safeAbsPath inp `shouldBe` Nothing
+
     describe "unsafeAbsPathError" $ do
         it "behaves just like safeRelPath except for errors" $ do
             forAll uncheckedPath $ \fp ->
@@ -99,6 +93,10 @@ spec = do
         it "succeeds on these regression tests" $ do
             forM_ relativePathCases $ \(inp, path) ->
                 toRelFilePath path `shouldBe` inp
+
+        it "fails on these regression tests" $ do
+            forM_ invalidRelativePaths $ \inp ->
+                safeRelPath inp `shouldBe` Nothing
 
         let works gen = forAll gen $ \(fp, path) -> toRelFilePath path `shouldBe` fp
         it "succesfully correctly outputs single-piece relative filepaths as generated" $ do
@@ -161,7 +159,7 @@ spec = do
 
     describe "combineLastAndExtensions" $ do
         it "produces valid pathpieces on valids" $ do
-            producesValidsOnValids2 combineLastAndExtensions
+            producesValidsOnGens2 combineLastAndExtensions (genValid `suchThat` (not . emptyLastPathPiece)) genValid
 
     describe "</>" $ do
         it "produces valid paths when it succeeds" $ do
@@ -170,8 +168,6 @@ spec = do
     describe "<.>" $ do
         it "produces valid paths when it succeeds" $ do
             producesValidsOnValids2 (<.>)
-
-    blackboxSpec
 
 genSpec :: Spec
 genSpec = describe "GenSpec" $ do
