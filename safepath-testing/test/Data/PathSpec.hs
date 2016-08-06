@@ -21,7 +21,7 @@ import System.Directory (doesFileExist)
 import Data.Path.Internal
 import Data.Path.Gen
 import Data.Path.IO ()
-import Data.PathCases
+import Data.RegressionTests
 import TestCase
 
 uncheckedPath :: Gen FilePath
@@ -84,7 +84,7 @@ spec = do
         it "succesfully correctly parses filepaths without extensions as generated" $ do
             works genAbsPathNoExtensions
 
-        it "succeeds on these black-box tests" $ do
+        it "succeeds on these regression tests" $ do
             forM_ absolutePathCases $ \(inp, path) ->
                 safeAbsPath inp `shouldBe` Just path
 
@@ -96,6 +96,10 @@ spec = do
                     Just res -> unsafeRelPathError fp `shouldBe` res
 
     describe "toRelFilePath" $ do
+        it "succeeds on these regression tests" $ do
+            forM_ relativePathCases $ \(inp, path) ->
+                toRelFilePath path `shouldBe` inp
+
         let works gen = forAll gen $ \(fp, path) -> toRelFilePath path `shouldBe` fp
         it "succesfully correctly outputs single-piece relative filepaths as generated" $ do
             works genRelPathSinglePieceFilePath
@@ -124,6 +128,10 @@ spec = do
             -- inverseFunctionsIfFirstSucceedsOnGen safeRelPath toRelFilePath arbitrary
 
     describe "toAbsFilePath" $ do
+        it "succeeds on these regression tests" $ do
+            forM_ absolutePathCases $ \(inp, path) ->
+                toAbsFilePath path `shouldBe` inp
+
         let works gen = forAll gen $ \(fp, path) -> toAbsFilePath path `shouldBe` fp
         it "succesfully correctly outputs single-piece absolute filepaths as generated" $ do
             works genAbsPathSinglePieceFilePath

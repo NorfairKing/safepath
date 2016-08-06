@@ -52,8 +52,8 @@ test-suite safepath-tests
   main-is:
     Spec.hs
   other-modules:
-    Data.PathSpec
-    Data.PathCases
+      Data.PathSpec
+    , Data.RegressionTests
   build-depends:
       base
     , safepath
