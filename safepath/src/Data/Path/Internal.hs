@@ -30,6 +30,12 @@ data Path rel
     , pathExtensions  :: [Extension]
     } deriving (Show, Eq, Generic, Data, Typeable)
 
+data Absolute = Absolute
+    deriving (Generic, Data, Typeable)
+
+data Relative = Relative
+    deriving (Generic, Data, Typeable)
+
 -- Choose nicer ways of printing if the context allows the compiler to figure
 -- out what kind of path it is.
 
@@ -39,11 +45,13 @@ instance Show (Path Relative) where
 instance Show (Path Absolute) where
     show = toAbsFilePath
 
-data Absolute = Absolute
-    deriving (Generic, Data, Typeable)
+-- | ONLY for @OverloadedStrings@
+instance IsString (Path Absolute) where
+    fromString = unsafeAbsPathError
 
-data Relative = Relative
-    deriving (Generic, Data, Typeable)
+-- | ONLY for @OverloadedStrings@
+instance IsString (Path Relative) where
+    fromString = unsafeRelPathError
 
 instance Validity (Path rel) where
     isValid Path{..}
@@ -69,16 +77,11 @@ instance Validity LastPathPiece where
 newtype Extension = Extension Text
     deriving (Show, Eq, Generic, Data, Typeable)
 
+instance IsString Extension where
+    fromString = unsafeExt
+
 instance Validity Extension where
     isValid (Extension t) = not (T.null t) && not (containsDot t) && not (containsSeparator t)
-
--- | ONLY for @OverloadedStrings@
-instance IsString (Path Absolute) where
-    fromString = unsafeAbsPathError
-
--- | ONLY for @OverloadedStrings@
-instance IsString (Path Relative) where
-    fromString = unsafeRelPathError
 
 containsSatisfied :: (Char -> Bool) -> Text -> Bool
 containsSatisfied func = isJust . T.find func
@@ -167,7 +170,14 @@ combineLastAndExtensions (LastPathPiece lpp) es
 unsafePathTypeCoerse :: Path rel -> Path rel'
 unsafePathTypeCoerse (Path pieces lastPiece exts) = Path pieces lastPiece exts
 
+ext :: String -> Maybe Extension
+ext = constructValid . Extension . T.pack
 
+unsafeExt :: String -> Extension
+unsafeExt e
+    = constructValidUnsafe
+    . fromMaybe (error $ "Invalid extension: " ++ e)
+    . ext $ e
 
 -- | If the first path has extensions, they will be appended to the last
 -- pathpiece before concatenation

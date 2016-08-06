@@ -5,6 +5,7 @@ module Data.Path
 
     , relpath
     , abspath
+    , ext
 
     , (</>)
     , (<.>)
