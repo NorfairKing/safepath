@@ -123,10 +123,10 @@ relpath fp = do
     unconsMay (a:as) = Just (a, as)
 
 unsafeRelPathError :: FilePath -> RelPath
-unsafeRelPathError
+unsafeRelPathError fp
     = constructValidUnsafe
-    . fromMaybe (error "Invalid path")
-    . relpath
+    . fromMaybe (error $ "Invalid path: " ++ fp)
+    . relpath $ fp
 
 abspath :: FilePath -> Maybe AbsPath
 abspath [] = Nothing
@@ -135,10 +135,10 @@ abspath ('/':fp) = unsafePathTypeCoerse <$> relpath fp
 abspath _ = Nothing
 
 unsafeAbsPathError :: FilePath -> AbsPath
-unsafeAbsPathError
+unsafeAbsPathError fp
     = constructValidUnsafe
-    . fromMaybe (error "Invalid path")
-    . abspath
+    . fromMaybe (error $ "Invalid path: " ++ fp)
+    . abspath $ fp
 
 toRelFilePath :: RelPath -> FilePath
 toRelFilePath (Path [] (LastPathPiece "") []) = "."
@@ -206,3 +206,8 @@ ground ap fp = case abspath fp of
         Just r -> Just $ ap </> r
         Nothing -> Nothing
 
+removeExtensions :: Path rel -> Path rel
+removeExtensions (Path ps lp _) = Path ps lp []
+
+takeLastPiece :: Path rel -> Text
+takeLastPiece (Path _ (LastPathPiece t) _) = t

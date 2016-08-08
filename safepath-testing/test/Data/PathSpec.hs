@@ -162,7 +162,7 @@ spec = do
             producesValidsOnGens2 combineLastAndExtensions (genValid `suchThat` (not . emptyLastPathPiece)) genValid
 
     describe "</>" $ do
-        it "produces valid paths when it succeeds" $ do
+        it "produces valid paths" $ do
             producesValidsOnValids2 (</>)
 
         it "is an associative operation" $ do
@@ -175,8 +175,18 @@ spec = do
             rightIdentityOnValid (</>) emptyPath
 
     describe "<.>" $ do
-        it "produces valid paths when it succeeds" $ do
+        it "produces valid paths" $ do
             producesValidsOnValids2 (<.>)
+
+    describe "ground" $ do
+        it "produces valid paths when it succeeds" $ do
+            validIfSucceedsOnGens2 ground genValid uncheckedPath
+
+    describe "removeExtensions" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids removeExtensions
+
+    -- TODO: describe "takeLastPiece" $ do
 
 genSpec :: Spec
 genSpec = describe "GenSpec" $ do

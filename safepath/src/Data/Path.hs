@@ -7,12 +7,18 @@ module Data.Path
     , abspath
     , ext
 
+    , unsafeAbsPathError
+    , unsafeRelPathError
+
     , (</>)
     , (<.>)
     , ground
 
     , toAbsFilePath
     , toRelFilePath
+
+    , removeExtensions
+    , takeLastPiece
     ) where
 
 import Data.Path.Internal
