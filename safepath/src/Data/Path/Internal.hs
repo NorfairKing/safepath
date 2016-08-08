@@ -83,14 +83,20 @@ instance IsString Extension where
 instance Validity Extension where
     isValid (Extension t) = not (T.null t) && not (containsDot t) && not (containsSeparator t)
 
+pathSeparator :: Char
+pathSeparator = '/'
+
+extensionSeparator :: Char
+extensionSeparator = '.'
+
 containsSatisfied :: (Char -> Bool) -> Text -> Bool
 containsSatisfied func = isJust . T.find func
 
 containsSeparator :: Text -> Bool
-containsSeparator = containsSatisfied (== '/')
+containsSeparator = containsSatisfied (== pathSeparator)
 
 containsDot :: Text -> Bool
-containsDot = containsSatisfied (== '.')
+containsDot = containsSatisfied (== extensionSeparator)
 
 emptyLastPathPiece :: LastPathPiece -> Bool
 emptyLastPathPiece (LastPathPiece "") = True
@@ -104,17 +110,18 @@ isEmptyPath p = p == emptyPath
 
 relpath :: FilePath -> Maybe RelPath
 relpath [] = Nothing
-relpath ['.'] = Just emptyPath
-relpath ('/':_) = Nothing
-relpath fp = do
-    let rawPieces = filter (not . T.null) $ T.split (== '/') $ T.pack fp
-    (firstPieces, lastRawPiece) <- unsnocMay rawPieces
-    let rawExts = filter (not . T.null) $ T.split (== '.') lastRawPiece
-    (lastPieceStr, safeExts) <- unconsMay rawExts
-    let pieces = map PathPiece firstPieces
-    let lastPiece = LastPathPiece lastPieceStr
-    let exts = map Extension safeExts
-    return $ Path pieces lastPiece exts
+relpath fp@(c:rest)
+    | c == extensionSeparator && null rest = Just emptyPath
+    | c == pathSeparator = Nothing
+    | otherwise = do
+        let rawPieces = filter (not . T.null) $ T.split (== pathSeparator) $ T.pack fp
+        (firstPieces, lastRawPiece) <- unsnocMay rawPieces
+        let rawExts = filter (not . T.null) $ T.split (== extensionSeparator) lastRawPiece
+        (lastPieceStr, safeExts) <- unconsMay rawExts
+        let pieces = map PathPiece firstPieces
+        let lastPiece = LastPathPiece lastPieceStr
+        let exts = map Extension safeExts
+        return $ Path pieces lastPiece exts
   where
     unsnocMay :: [a] -> Maybe ([a], a)
     unsnocMay as = (,) <$> initMay as <*> lastMay as
@@ -130,9 +137,10 @@ unsafeRelPathError fp
 
 abspath :: FilePath -> Maybe AbsPath
 abspath [] = Nothing
-abspath ['/'] = Just emptyPath
-abspath ('/':fp) = unsafePathTypeCoerse <$> relpath fp
-abspath _ = Nothing
+abspath (c:fp)
+  | c == pathSeparator && null fp = Just emptyPath
+  | c == pathSeparator = unsafePathTypeCoerse <$> relpath fp
+  | otherwise = Nothing
 
 unsafeAbsPathError :: FilePath -> AbsPath
 unsafeAbsPathError fp
@@ -141,14 +149,14 @@ unsafeAbsPathError fp
     . abspath $ fp
 
 toRelFilePath :: RelPath -> FilePath
-toRelFilePath (Path [] (LastPathPiece "") []) = "."
+toRelFilePath (Path [] (LastPathPiece "") []) = [extensionSeparator]
 toRelFilePath Path{..}
-    =  intercalate "/" (map renderPiece pathPieces ++ [renderLastPiece pathLastPiece])
+    =  intercalate [pathSeparator] (map renderPiece pathPieces ++ [renderLastPiece pathLastPiece])
     ++ renderExtensions pathExtensions
 
 toAbsFilePath :: AbsPath -> FilePath
-toAbsFilePath (Path [] (LastPathPiece "") []) = "/"
-toAbsFilePath p = ('/':) . toRelFilePath . unsafePathTypeCoerse $ p
+toAbsFilePath (Path [] (LastPathPiece "") []) = [pathSeparator]
+toAbsFilePath p = (pathSeparator:) . toRelFilePath . unsafePathTypeCoerse $ p
 
 renderPiece :: PathPiece -> String
 renderPiece (PathPiece p) = T.unpack p
@@ -161,7 +169,7 @@ renderExtension (Extension e) = T.unpack e
 
 renderExtensions :: [Extension] -> String
 renderExtensions [] = ""
-renderExtensions es = "." ++ intercalate "." (map renderExtension es)
+renderExtensions es = [extensionSeparator] ++ intercalate [extensionSeparator] (map renderExtension es)
 
 combineLastAndExtensions :: LastPathPiece -> [Extension] -> PathPiece
 combineLastAndExtensions (LastPathPiece lpp) es
