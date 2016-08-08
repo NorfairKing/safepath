@@ -200,12 +200,24 @@ unsafeExt e
         , pathExtensions = pathExtensions p2
         }
 
+-- | Add an extension to a path
+--
+-- >>> addExtension "/directory/path" "ext" :: AbsPath
+-- /directory/path.ext
+-- >>> addExtension "/directory/path" "ext" :: AbsPath
+-- /directory/path.ext
 addExtension :: Path rel -> Extension -> Path rel
 addExtension path extension
     | isEmptyPath path = path
     | otherwise = path
       { pathExtensions = pathExtensions path ++ [extension] }
 
+-- | Add an extension to a path (equivalent to 'addExtension')
+--
+-- >>> "/directory/path" <.> "ext" :: AbsPath
+-- /directory/path.ext
+-- >>> "/directory/path" <.> "ext" :: AbsPath
+-- /directory/path.ext
 (<.>) :: Path rel -> Extension -> Path rel
 (<.>) = addExtension
 

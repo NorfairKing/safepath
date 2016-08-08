@@ -11,7 +11,10 @@ module Data.Path
     , unsafeRelPathError
 
     , (</>)
+
+    , addExtension
     , (<.>)
+
     , ground
 
     , toAbsFilePath
@@ -19,6 +22,8 @@ module Data.Path
 
     , dropExtension
     , dropExtensions
+
+    , replaceExtension
     , (-<.>)
 
     , takeLastPiece
