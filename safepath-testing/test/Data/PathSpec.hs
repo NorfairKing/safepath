@@ -174,17 +174,33 @@ spec = do
         it "Has a right identity: the empty path" $ do
             rightIdentityOnValid (</>) emptyPath
 
-    describe "<.>" $ do
+    describe "addExtension" $ do
         it "produces valid paths" $ do
-            producesValidsOnValids2 (<.>)
+            producesValidsOnValids2 addExtension
+
+    describe "<.>" $ do
+        it "behaves exactly like addExtension" $ do
+            equivalent2 addExtension (<.>)
+
+    describe "dropExtension" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids dropExtension
+
+    describe "dropExtensions" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids dropExtensions
+
+    describe "replaceExtension" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids2 (-<.>)
+
+    describe "-<.>" $ do
+        it "behaves exactly like replaceExtension" $ do
+            equivalent2 replaceExtension (-<.>)
 
     describe "ground" $ do
         it "produces valid paths when it succeeds" $ do
             validIfSucceedsOnGens2 ground genValid uncheckedPath
-
-    describe "removeExtensions" $ do
-        it "produces valid paths" $ do
-            producesValidsOnValids removeExtensions
 
     -- TODO: describe "takeLastPiece" $ do
 

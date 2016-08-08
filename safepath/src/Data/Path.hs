@@ -17,7 +17,10 @@ module Data.Path
     , toAbsFilePath
     , toRelFilePath
 
-    , removeExtensions
+    , dropExtension
+    , dropExtensions
+    , (-<.>)
+
     , takeLastPiece
     ) where
 

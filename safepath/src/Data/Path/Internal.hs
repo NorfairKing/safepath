@@ -200,12 +200,27 @@ unsafeExt e
         , pathExtensions = pathExtensions p2
         }
 
-(<.>) :: Path rel -> Extension -> Path rel
-(<.>) path extension
+addExtension :: Path rel -> Extension -> Path rel
+addExtension path extension
     | isEmptyPath path = path
     | otherwise = path
-    { pathExtensions = pathExtensions path ++ [extension]
-    }
+      { pathExtensions = pathExtensions path ++ [extension] }
+
+(<.>) :: Path rel -> Extension -> Path rel
+(<.>) = addExtension
+
+dropExtension :: Path rel -> Path rel
+dropExtension path = path
+    { pathExtensions = reverse . drop 1 . reverse $ pathExtensions path }
+
+dropExtensions :: Path rel -> Path rel
+dropExtensions (Path ps lp _) = Path ps lp []
+
+replaceExtension :: Path rel -> Extension -> Path rel
+replaceExtension path extension = dropExtension path <.> extension
+
+(-<.>) :: Path rel -> Extension -> Path rel
+(-<.>) = replaceExtension
 
 ground :: AbsPath -> FilePath -> Maybe AbsPath
 ground ap fp = case abspath fp of
@@ -213,9 +228,6 @@ ground ap fp = case abspath fp of
     Nothing -> case relpath fp of
         Just r -> Just $ ap </> r
         Nothing -> Nothing
-
-removeExtensions :: Path rel -> Path rel
-removeExtensions (Path ps lp _) = Path ps lp []
 
 takeLastPiece :: Path rel -> Text
 takeLastPiece (Path _ (LastPathPiece t) _) = t
