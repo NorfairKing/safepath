@@ -189,6 +189,19 @@ unsafeExt e
 
 -- | If the first path has extensions, they will be appended to the last
 -- pathpiece before concatenation
+--
+-- >>> "/directory/path" </> "another/path.ext" :: AbsPath
+-- /directory/path/another/path.ext
+-- >>> "directory/path"  </> "another/path.ext" :: RelPath
+-- directory/path/another/path.ext
+-- >>> "/file.ext1.ext2" </> "other/file.ext3"  :: AbsPath
+-- /file.ext1.ext2/other/file.ext3
+-- >>> "file.ext1.ext2"  </> "other/file.ext3"  :: RelPath
+-- file.ext1.ext2/other/file.ext3
+-- >>> "." </> "file.ext" :: RelPath
+-- file.ext
+-- >>> "/" </> "file.ext" :: AbsPath
+-- /file.ext
 (</>) :: Path rel -> RelPath -> Path rel
 (</>) p1 p2
     | isEmptyPath p1 && isEmptyPath p2 = emptyPath
@@ -202,10 +215,18 @@ unsafeExt e
 
 -- | Add an extension to a path
 --
--- >>> addExtension "/directory/path" "ext" :: AbsPath
+-- >>> addExtension "/directory/path"       "ext"   :: AbsPath
 -- /directory/path.ext
--- >>> addExtension "/directory/path" "ext" :: AbsPath
--- /directory/path.ext
+-- >>> addExtension "/directory/path.ext1"  "ext2"  :: AbsPath
+-- /directory/path.ext1.ext2
+-- >>> addExtension "directory/path"        "ext"   :: RelPath
+-- directory/path.ext
+-- >>> addExtension "directory/path.ext1"   "ext2"  :: RelPath
+-- directory/path.ext1.ext2
+-- >>> addExtension "." "ext" :: RelPath
+-- .
+-- >>> addExtension "/" "ext" :: AbsPath
+-- /
 addExtension :: Path rel -> Extension -> Path rel
 addExtension path extension
     | isEmptyPath path = path
@@ -214,23 +235,103 @@ addExtension path extension
 
 -- | Add an extension to a path (equivalent to 'addExtension')
 --
--- >>> "/directory/path" <.> "ext" :: AbsPath
+-- >>> "/directory/path"      <.> "ext"   :: AbsPath
 -- /directory/path.ext
--- >>> "/directory/path" <.> "ext" :: AbsPath
--- /directory/path.ext
+-- >>> "/directory/path.ext1" <.> "ext2"  :: AbsPath
+-- /directory/path.ext1.ext2
+-- >>> "directory/path"       <.> "ext"   :: RelPath
+-- directory/path.ext
+-- >>> "directory/path.ext1"  <.> "ext2"  :: RelPath
+-- directory/path.ext1.ext2
+-- >>> "." <.> "ext" :: RelPath
+-- .
+-- >>> "/" <.> "ext" :: AbsPath
+-- /
 (<.>) :: Path rel -> Extension -> Path rel
 (<.>) = addExtension
 
+-- | Drop the last extension of a path
+--
+-- >>> dropExtension "dir/file.ext1.ext2" :: RelPath
+-- dir/file.ext1
+-- >>> dropExtension "dir/file.ext" :: RelPath
+-- dir/file
+-- >>> dropExtension "dir/file" :: RelPath
+-- dir/file
+-- >>> dropExtension "/dir/file.ext1.ext2" :: AbsPath
+-- /dir/file.ext1
+-- >>> dropExtension "/dir/file.ext" :: AbsPath
+-- /dir/file
+-- >>> dropExtension "/dir/file" :: AbsPath
+-- /dir/file
+-- >>> dropExtension "." :: RelPath
+-- .
+-- >>> dropExtension "/" :: AbsPath
+-- /
 dropExtension :: Path rel -> Path rel
 dropExtension path = path
     { pathExtensions = reverse . drop 1 . reverse $ pathExtensions path }
 
+-- | Drop all extensions of a path
+--
+-- >>> dropExtensions "dir/file.ext1.ext2" :: RelPath
+-- dir/file
+-- >>> dropExtensions "dir/file.ext" :: RelPath
+-- dir/file
+-- >>> dropExtensions "dir/file" :: RelPath
+-- dir/file
+-- >>> dropExtensions "/dir/file.ext1.ext2" :: AbsPath
+-- /dir/file
+-- >>> dropExtensions "/dir/file.ext" :: AbsPath
+-- /dir/file
+-- >>> dropExtensions "/dir/file" :: AbsPath
+-- /dir/file
+-- >>> dropExtensions "." :: RelPath
+-- .
+-- >>> dropExtensions "/" :: AbsPath
+-- /
 dropExtensions :: Path rel -> Path rel
 dropExtensions (Path ps lp _) = Path ps lp []
 
+-- | Replace the last extension of a path
+--
+-- >>> replaceExtension "dir/file.ext1.ext2"  "ext3" :: RelPath
+-- dir/file.ext1.ext3
+-- >>> replaceExtension "dir/file.ext1"       "ext2" :: RelPath
+-- dir/file.ext2
+-- >>> replaceExtension "dir/file"            "ext"  :: RelPath
+-- dir/file.ext
+-- >>> replaceExtension "/dir/file.ext1.ext2" "ext3" :: AbsPath
+-- /dir/file.ext1.ext3
+-- >>> replaceExtension "/dir/file.ext1"      "ext2" :: AbsPath
+-- /dir/file.ext2
+-- >>> replaceExtension "/dir/file"           "ext"  :: AbsPath
+-- /dir/file.ext
+-- >>> replaceExtension "." "ext" :: RelPath
+-- .
+-- >>> replaceExtension "/" "ext" :: AbsPath
+-- /
 replaceExtension :: Path rel -> Extension -> Path rel
 replaceExtension path extension = dropExtension path <.> extension
 
+-- | Replace the last extension of a path (equivalent to 'replaceExtension')
+--
+-- >>> "dir/file.ext1.ext2" -<.> "ext3"   :: RelPath
+-- dir/file.ext1.ext3
+-- >>> "dir/file.ext1" -<.> "ext2"        :: RelPath
+-- dir/file.ext2
+-- >>> "dir/file" -<.> "ext"              :: RelPath
+-- dir/file.ext
+-- >>> "/dir/file.ext1.ext2" -<.> "ext3"  :: AbsPath
+-- /dir/file.ext1.ext3
+-- >>> "/dir/file.ext1" -<.> "ext2"       :: AbsPath
+-- /dir/file.ext2
+-- >>> "/dir/file" -<.> "ext"             :: AbsPath
+-- /dir/file.ext
+-- >>> "." -<.> "ext" :: RelPath
+-- .
+-- >>> "/" -<.> "ext" :: AbsPath
+-- /
 (-<.>) :: Path rel -> Extension -> Path rel
 (-<.>) = replaceExtension
 
