@@ -335,12 +335,24 @@ replaceExtension path extension = dropExtension path <.> extension
 (-<.>) :: Path rel -> Extension -> Path rel
 (-<.>) = replaceExtension
 
+-- | Ground a filepath on an absolute path.
+-- This will try to parse the given @FilePath@ as an absolute path and take it
+-- if that works. Otherwise it will try to parse it an a relative path and
+-- append it to the given @AbsPath@
+--
+-- >>> ground "/home/user" "relative/path"
+-- Just /home/user/relative/path
+-- >>> ground "/home/user" "/absolute/path"
+-- Just /absolute/path
+-- >>> ground "/home/user" "."
+-- Just /home/user
+-- >>> ground "/home/user" "/"
+-- Just /
+-- >>> ground "/" "."
+-- Just /
 ground :: AbsPath -> FilePath -> Maybe AbsPath
 ground ap fp = case abspath fp of
     Just a -> Just a
     Nothing -> case relpath fp of
         Just r -> Just $ ap </> r
         Nothing -> Nothing
-
-takeLastPiece :: Path rel -> Text
-takeLastPiece (Path _ (LastPathPiece t) _) = t

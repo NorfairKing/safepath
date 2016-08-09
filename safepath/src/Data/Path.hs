@@ -25,8 +25,6 @@ module Data.Path
 
     , replaceExtension
     , (-<.>)
-
-    , takeLastPiece
     ) where
 
 import Data.Path.Internal
