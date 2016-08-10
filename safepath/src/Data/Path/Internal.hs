@@ -46,10 +46,14 @@ instance Show (Path Absolute) where
     show = toAbsFilePath
 
 -- | ONLY for @OverloadedStrings@
+-- This instance instance is unsafe and should only be used at own risk,
+-- for literals
 instance IsString (Path Absolute) where
     fromString = unsafeAbsPathError
 
 -- | ONLY for @OverloadedStrings@
+-- This instance instance is unsafe and should only be used at own risk,
+-- for literals
 instance IsString (Path Relative) where
     fromString = unsafeRelPathError
 
@@ -75,10 +79,16 @@ instance Validity LastPathPiece where
     isValid (LastPathPiece t) = not (containsSeparator t) && not (containsDot t)
 
 newtype Extension = Extension Text
-    deriving (Show, Eq, Generic, Data, Typeable)
+    deriving (Eq, Generic, Data, Typeable)
 
+instance Show Extension where
+    show (Extension t) = T.unpack t
+
+-- | ONLY for @OverloadedStrings@
+-- This instance instance is unsafe and should only be used at own risk,
+-- for literals
 instance IsString Extension where
-    fromString = unsafeExt
+    fromString = unsafeExtError
 
 instance Validity Extension where
     isValid (Extension t) = not (T.null t) && not (containsDot t) && not (containsSeparator t)
@@ -108,6 +118,19 @@ emptyPath = (Path [] (LastPathPiece "") [])
 isEmptyPath :: Path rel -> Bool
 isEmptyPath p = p == emptyPath
 
+-- | Construct a relative path from a 'FilePath', failing if
+-- the given 'FilePath' does not represent a valid relative path.
+--
+-- >>> relpath "file"
+-- Just file
+-- >>> relpath "/file"
+-- Nothing
+-- >>> relpath "."
+-- Just .
+-- >>> relpath "/"
+-- Nothing
+-- >>> relpath ""
+-- Nothing
 relpath :: FilePath -> Maybe RelPath
 relpath [] = Nothing
 relpath fp@(c:rest)
@@ -129,12 +152,20 @@ relpath fp@(c:rest)
     unconsMay [] = Nothing
     unconsMay (a:as) = Just (a, as)
 
-unsafeRelPathError :: FilePath -> RelPath
-unsafeRelPathError fp
-    = constructValidUnsafe
-    . fromMaybe (error $ "Invalid path: " ++ fp)
-    . relpath $ fp
 
+-- | Construct an absolute path from a 'FilePath', failing if
+-- the given 'FilePath' does not represent a valid absolute path.
+--
+-- >>> abspath "/file"
+-- Just /file
+-- >>> abspath "file"
+-- Nothing
+-- >>> abspath "/"
+-- Just /
+-- >>> abspath "."
+-- Nothing
+-- >>> abspath ""
+-- Nothing
 abspath :: FilePath -> Maybe AbsPath
 abspath [] = Nothing
 abspath (c:fp)
@@ -142,18 +173,31 @@ abspath (c:fp)
   | c == pathSeparator = unsafePathTypeCoerse <$> relpath fp
   | otherwise = Nothing
 
+-- | Construct a relative path, throwing an 'error'
+-- if 'relpath' would fail.
+unsafeRelPathError :: FilePath -> RelPath
+unsafeRelPathError fp
+    = constructValidUnsafe
+    . fromMaybe (error $ "Invalid path: " ++ fp)
+    . relpath $ fp
+
+
+-- | Construct an absolute path, throwing an 'error'
+-- if 'abspath' would fail.
 unsafeAbsPathError :: FilePath -> AbsPath
 unsafeAbsPathError fp
     = constructValidUnsafe
     . fromMaybe (error $ "Invalid path: " ++ fp)
     . abspath $ fp
 
+-- | Render a relative filepath to a 'FilePath'
 toRelFilePath :: RelPath -> FilePath
 toRelFilePath (Path [] (LastPathPiece "") []) = [extensionSeparator]
 toRelFilePath Path{..}
     =  intercalate [pathSeparator] (map renderPiece pathPieces ++ [renderLastPiece pathLastPiece])
     ++ renderExtensions pathExtensions
 
+-- | Render an absolute filepath to a 'FilePath'
 toAbsFilePath :: AbsPath -> FilePath
 toAbsFilePath (Path [] (LastPathPiece "") []) = [pathSeparator]
 toAbsFilePath p = (pathSeparator:) . toRelFilePath . unsafePathTypeCoerse $ p
@@ -178,11 +222,20 @@ combineLastAndExtensions (LastPathPiece lpp) es
 unsafePathTypeCoerse :: Path rel -> Path rel'
 unsafePathTypeCoerse (Path pieces lastPiece exts) = Path pieces lastPiece exts
 
+-- | Construct an extension safely
+--
+-- >>> ext "extension"
+-- Just extension
+-- >>> ext ".ext"
+-- Nothing
+-- >>> ext ""
+-- Nothing
 ext :: String -> Maybe Extension
 ext = constructValid . Extension . T.pack
 
-unsafeExt :: String -> Extension
-unsafeExt e
+-- | Construct an extension, throwing an 'error' if 'ext' would fail.
+unsafeExtError :: String -> Extension
+unsafeExtError e
     = constructValidUnsafe
     . fromMaybe (error $ "Invalid extension: " ++ e)
     . ext $ e
@@ -215,14 +268,21 @@ unsafeExt e
 
 -- | Add an extension to a path
 --
--- >>> addExtension "/directory/path"       "ext"   :: AbsPath
+-- >>> addExtension "/directory/path" "ext" :: AbsPath
 -- /directory/path.ext
--- >>> addExtension "/directory/path.ext1"  "ext2"  :: AbsPath
--- /directory/path.ext1.ext2
--- >>> addExtension "directory/path"        "ext"   :: RelPath
+-- >>> addExtension "directory/path"  "ext" :: RelPath
 -- directory/path.ext
--- >>> addExtension "directory/path.ext1"   "ext2"  :: RelPath
+--
+-- This will not override the extension if there already is an extension.
+-- It will only add the given extension on top of it
+--
+-- >>> addExtension "/directory/path.ext1" "ext2" :: AbsPath
+-- /directory/path.ext1.ext2
+-- >>> addExtension "directory/path.ext1"  "ext2" :: RelPath
 -- directory/path.ext1.ext2
+--
+-- This will not add an extension if the path is empty.
+--
 -- >>> addExtension "." "ext" :: RelPath
 -- .
 -- >>> addExtension "/" "ext" :: AbsPath
@@ -235,13 +295,13 @@ addExtension path extension
 
 -- | Add an extension to a path (equivalent to 'addExtension')
 --
--- >>> "/directory/path"      <.> "ext"   :: AbsPath
+-- >>> "/directory/path" <.> "ext" :: AbsPath
 -- /directory/path.ext
--- >>> "/directory/path.ext1" <.> "ext2"  :: AbsPath
--- /directory/path.ext1.ext2
--- >>> "directory/path"       <.> "ext"   :: RelPath
+-- >>> "directory/path"  <.> "ext" :: RelPath
 -- directory/path.ext
--- >>> "directory/path.ext1"  <.> "ext2"  :: RelPath
+-- >>> "/directory/path.ext1" <.> "ext2" :: AbsPath
+-- /directory/path.ext1.ext2
+-- >>> "directory/path.ext1"  <.> "ext2" :: RelPath
 -- directory/path.ext1.ext2
 -- >>> "." <.> "ext" :: RelPath
 -- .
@@ -294,6 +354,10 @@ dropExtensions :: Path rel -> Path rel
 dropExtensions (Path ps lp _) = Path ps lp []
 
 -- | Replace the last extension of a path
+--
+-- This will first remove one extension and then add the given extension.
+--
+-- > replaceExtension path extension = dropExtension path <.> extension
 --
 -- >>> replaceExtension "dir/file.ext1.ext2"  "ext3" :: RelPath
 -- dir/file.ext1.ext3
@@ -350,6 +414,8 @@ replaceExtension path extension = dropExtension path <.> extension
 -- Just /
 -- >>> ground "/" "."
 -- Just /
+-- >>> ground "/anything" ""
+-- Nothing
 ground :: AbsPath -> FilePath -> Maybe AbsPath
 ground ap fp = case abspath fp of
     Just a -> Just a
