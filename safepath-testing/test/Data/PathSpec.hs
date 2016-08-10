@@ -179,9 +179,21 @@ spec = do
         it "produces lists of extensions" $ do
             producesValidsOnValids takeExtensions
 
+        it "produces the second element of the result of splitExtensions" $ do
+            equivalent takeExtensions (snd . splitExtensions)
+
+        it "finds the extensions set by replaceExtensionss" $ do
+            forAll genUnchecked $ \path ->
+                forAll genUnchecked $ \es ->
+                    takeExtensions (replaceExtensionss path es) `shouldBe` es
+
+
     describe "replaceExtension" $ do
         it "produces valid paths" $ do
             producesValidsOnValids2 (-<.>)
+
+        it "is equivalent to addExtesion after dropExtension" $ do
+            equivalent2 replaceExtension (\path ex -> addExtension (dropExtension path) ex)
 
     describe "replaceExtensions" $ do
         it "produces valid paths" $ do
@@ -203,7 +215,14 @@ spec = do
         it "produces valid paths" $ do
             producesValidsOnValids dropExtensions
 
+        it "is equivalent to producing the first element of the result of splitExtensions" $ do
+            equivalent dropExtensions (fst . splitExtensions)
+
     describe "addExtension" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids2 addExtension
+
+    describe "addExtensions" $ do
         it "produces valid paths" $ do
             producesValidsOnValids2 addExtension
 
@@ -228,7 +247,9 @@ spec = do
                 let (stripped, exts) = splitExtensions path
                 addExtensions stripped exts `shouldBe` path
 
-    describe "hasExtension" $ return ()
+    describe "hasExtension" $ do
+        it "is equivalent to null after takeExtension" $ do
+            equivalentOnValid hasExtension (not . null . takeExtensions)
 
     describe "</>" $ do
         it "produces valid paths" $ do
@@ -286,27 +307,33 @@ nameOf proxy =
 
 blackboxSpec :: Spec
 blackboxSpec = describe "Black-box tests" $ do
-    describe "Parse tests" $ withExistingContentsLB "data/cases.txt" $ \lbs ->
-        forM_ (LB8.lines lbs) $ \line ->
-            case decode line of
-                Just (TestCase fp rp) ->
-                    it fp $ relpath fp `shouldBe` Just rp
-                Nothing ->
-                    case decode line of
-                        Just (TestCase fp ap) ->
-                            it fp $ abspath fp `shouldBe` Just ap
-                        Nothing -> return ()
+    describe "Parse tests" $ withExistingContentsLB "data/cases.txt" $ \lbs -> do
+        let ls = LB8.lines lbs
+            nr = length ls
+        it ("passes all" ++ show nr ++ "black-box parse tests") $ do
+            forM_ ls $ \line ->
+                case decode line of
+                    Just (TestCase fp rp) ->
+                        relpath fp `shouldBe` Just rp
+                    Nothing ->
+                        case decode line of
+                            Just (TestCase fp ap) ->
+                                abspath fp `shouldBe` Just ap
+                            Nothing -> return ()
 
-    describe "Render tests" $ withExistingContentsLB "data/cases.txt" $ \lbs ->
-        forM_ (LB8.lines lbs) $ \line ->
-            case decode line of
-                Just (TestCase fp relpath) ->
-                    it fp $ toRelFilePath relpath `shouldBe` fp
-                Nothing ->
-                    case decode line of
-                        Just (TestCase fp abspath) ->
-                            it fp $ toAbsFilePath abspath `shouldBe` fp
-                        Nothing -> return ()
+    describe "Render tests" $ withExistingContentsLB "data/cases.txt" $ \lbs -> do
+        let ls = LB8.lines lbs
+            nr = length ls
+        it ("passes all" ++ show nr ++ "black-box render tests") $ do
+            forM_ ls $ \line ->
+                case decode line of
+                    Just (TestCase fp relpath) ->
+                        toRelFilePath relpath `shouldBe` fp
+                    Nothing ->
+                        case decode line of
+                            Just (TestCase fp abspath) ->
+                                toAbsFilePath abspath `shouldBe` fp
+                            Nothing -> return ()
 
 
 withExisting :: FilePath -> Spec -> Spec
