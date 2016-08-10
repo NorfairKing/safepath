@@ -20,6 +20,13 @@ import Safe
 
 import Data.Validity
 
+unsnoc :: [a] -> Maybe ([a], a)
+unsnoc as = (,) <$> initMay as <*> lastMay as
+
+uncons :: [a] -> Maybe (a, [a])
+uncons [] = Nothing
+uncons (a:as) = Just (a, as)
+
 type AbsPath = Path Absolute
 type RelPath = Path Relative
 
@@ -118,6 +125,35 @@ emptyPath = (Path [] (LastPathPiece "") [])
 isEmptyPath :: Path rel -> Bool
 isEmptyPath p = p == emptyPath
 
+renderPiece :: PathPiece -> String
+renderPiece (PathPiece p) = T.unpack p
+
+renderLastPiece :: LastPathPiece -> String
+renderLastPiece (LastPathPiece p) = T.unpack p
+
+renderExtension :: Extension -> String
+renderExtension (Extension e) = T.unpack e
+
+renderExtensions :: [Extension] -> String
+renderExtensions [] = ""
+renderExtensions es = [extensionSeparator] ++ intercalate [extensionSeparator] (map renderExtension es)
+
+combineLastAndExtensions :: LastPathPiece -> [Extension] -> PathPiece
+combineLastAndExtensions (LastPathPiece lpp) es
+    = PathPiece $ lpp <> T.pack (renderExtensions es)
+
+splitPiece :: PathPiece -> (LastPathPiece, [Extension])
+splitPiece (PathPiece t) =
+    let rawExts = filter (not . T.null) $ T.split (== extensionSeparator) t
+        lastPieceStr = head rawExts
+        safeExts = tail rawExts
+        lastPiece = LastPathPiece lastPieceStr
+        exts = map Extension safeExts
+    in (lastPiece, exts)
+
+unsafePathTypeCoerse :: Path rel -> Path rel'
+unsafePathTypeCoerse (Path pieces lastPiece exts) = Path pieces lastPiece exts
+
 -- | Construct a relative path from a 'FilePath', failing if
 -- the given 'FilePath' does not represent a valid relative path.
 --
@@ -138,19 +174,9 @@ relpath fp@(c:rest)
     | c == pathSeparator = Nothing
     | otherwise = do
         let rawPieces = filter (not . T.null) $ T.split (== pathSeparator) $ T.pack fp
-        (firstPieces, lastRawPiece) <- unsnocMay rawPieces
-        let rawExts = filter (not . T.null) $ T.split (== extensionSeparator) lastRawPiece
-        (lastPieceStr, safeExts) <- unconsMay rawExts
-        let pieces = map PathPiece firstPieces
-        let lastPiece = LastPathPiece lastPieceStr
-        let exts = map Extension safeExts
+        (pieces, lastRawPiece) <- unsnoc $ map PathPiece rawPieces
+        let (lastPiece, exts) = splitPiece lastRawPiece
         return $ Path pieces lastPiece exts
-  where
-    unsnocMay :: [a] -> Maybe ([a], a)
-    unsnocMay as = (,) <$> initMay as <*> lastMay as
-    unconsMay :: [a] -> Maybe (a, [a])
-    unconsMay [] = Nothing
-    unconsMay (a:as) = Just (a, as)
 
 
 -- | Construct an absolute path from a 'FilePath', failing if
@@ -172,6 +198,17 @@ abspath (c:fp)
   | c == pathSeparator && null fp = Just emptyPath
   | c == pathSeparator = unsafePathTypeCoerse <$> relpath fp
   | otherwise = Nothing
+
+-- | Construct an extension safely
+--
+-- >>> ext "extension"
+-- Just extension
+-- >>> ext ".ext"
+-- Nothing
+-- >>> ext ""
+-- Nothing
+ext :: String -> Maybe Extension
+ext = constructValid . Extension . T.pack
 
 -- | Ground a filepath on an absolute path.
 -- This will try to parse the given @FilePath@ as an absolute path and take it
@@ -214,6 +251,13 @@ unsafeAbsPathError fp
     . fromMaybe (error $ "Invalid path: " ++ fp)
     . abspath $ fp
 
+-- | Construct an extension, throwing an 'error' if 'ext' would fail.
+unsafeExtError :: String -> Extension
+unsafeExtError e
+    = constructValidUnsafe
+    . fromMaybe (error $ "Invalid extension: " ++ e)
+    . ext $ e
+
 -- | Render a relative filepath to a 'FilePath'
 toRelFilePath :: RelPath -> FilePath
 toRelFilePath (Path [] (LastPathPiece "") []) = [extensionSeparator]
@@ -225,70 +269,6 @@ toRelFilePath Path{..}
 toAbsFilePath :: AbsPath -> FilePath
 toAbsFilePath (Path [] (LastPathPiece "") []) = [pathSeparator]
 toAbsFilePath p = (pathSeparator:) . toRelFilePath . unsafePathTypeCoerse $ p
-
-renderPiece :: PathPiece -> String
-renderPiece (PathPiece p) = T.unpack p
-
-renderLastPiece :: LastPathPiece -> String
-renderLastPiece (LastPathPiece p) = T.unpack p
-
-renderExtension :: Extension -> String
-renderExtension (Extension e) = T.unpack e
-
-renderExtensions :: [Extension] -> String
-renderExtensions [] = ""
-renderExtensions es = [extensionSeparator] ++ intercalate [extensionSeparator] (map renderExtension es)
-
-combineLastAndExtensions :: LastPathPiece -> [Extension] -> PathPiece
-combineLastAndExtensions (LastPathPiece lpp) es
-    = PathPiece $ lpp <> T.pack (renderExtensions es)
-
-unsafePathTypeCoerse :: Path rel -> Path rel'
-unsafePathTypeCoerse (Path pieces lastPiece exts) = Path pieces lastPiece exts
-
--- | Construct an extension safely
---
--- >>> ext "extension"
--- Just extension
--- >>> ext ".ext"
--- Nothing
--- >>> ext ""
--- Nothing
-ext :: String -> Maybe Extension
-ext = constructValid . Extension . T.pack
-
--- | Construct an extension, throwing an 'error' if 'ext' would fail.
-unsafeExtError :: String -> Extension
-unsafeExtError e
-    = constructValidUnsafe
-    . fromMaybe (error $ "Invalid extension: " ++ e)
-    . ext $ e
-
--- | If the first path has extensions, they will be appended to the last
--- pathpiece before concatenation
---
--- >>> "/directory/path" </> "another/path.ext" :: AbsPath
--- /directory/path/another/path.ext
--- >>> "directory/path"  </> "another/path.ext" :: RelPath
--- directory/path/another/path.ext
--- >>> "/file.ext1.ext2" </> "other/file.ext3"  :: AbsPath
--- /file.ext1.ext2/other/file.ext3
--- >>> "file.ext1.ext2"  </> "other/file.ext3"  :: RelPath
--- file.ext1.ext2/other/file.ext3
--- >>> "." </> "file.ext" :: RelPath
--- file.ext
--- >>> "/" </> "file.ext" :: AbsPath
--- /file.ext
-(</>) :: Path rel -> RelPath -> Path rel
-(</>) p1 p2
-    | isEmptyPath p1 && isEmptyPath p2 = emptyPath
-    | isEmptyPath p2 = p1
-    | isEmptyPath p1 = unsafePathTypeCoerse p2
-    | otherwise = Path
-        { pathPieces = pathPieces p1 ++ [combineLastAndExtensions (pathLastPiece p1) (pathExtensions p1)] ++ pathPieces p2
-        , pathLastPiece = pathLastPiece p2
-        , pathExtensions = pathExtensions p2
-        }
 
 -- | Add an extension to a path
 --
@@ -562,7 +542,94 @@ stripExtensions (Path ps lp es) esq
 splitExtensions :: Path rel -> (Path rel, [Extension])
 splitExtensions p = (dropExtensions p, takeExtensions p)
 
+-- | Split a path into all but the last piece and the last piece and the extension
+--
+-- >>> splitFileName ("/directory/file.ext" :: AbsPath)
+-- (/directory,file.ext)
+-- >>> splitFileName ("file/bob.txt" :: RelPath)
+-- (file,bob.txt)
+-- >>> splitFileName ("file" :: RelPath)
+-- (.,file)
+-- >>> splitFileName ("dir.ext/file.ext" :: RelPath)
+-- (dir.ext,file.ext)
+splitFileName :: Path rel -> (Path rel, RelPath)
+splitFileName (Path ps lp es)
+    = case unsnoc ps of
+          Nothing -> (emptyPath, Path [] lp es)
+          Just (firsts, lastp) ->
+              let (lp', es') = splitPiece lastp
+              in (Path firsts lp' es', Path [] lp es)
 
+takeFileName :: Path rel -> RelPath
+takeFileName = undefined
+
+replaceFileName :: Path rel -> LastPathPiece -> Path rel
+replaceFileName = undefined
+
+dropFileName :: Path rel -> Path rel
+dropFileName = undefined
+
+takeBaseName :: Path rel -> LastPathPiece
+takeBaseName = undefined
+
+replaceBaseName :: Path rel -> LastPathPiece -> Path rel
+replaceBaseName = undefined
+
+takeDirectory :: Path rel -> Path rel
+takeDirectory = undefined
+
+replaceDirectory :: Path rel -> Path rel -> Path rel
+replaceDirectory = undefined
+
+-- | If the first path has extensions, they will be appended to the last
+-- pathpiece before concatenation
+--
+-- >>> combine "/directory/path" "another/path.ext" :: AbsPath
+-- /directory/path/another/path.ext
+-- >>> combine "directory/path"  "another/path.ext" :: RelPath
+-- directory/path/another/path.ext
+-- >>> combine "/file.ext1.ext2" "other/file.ext3"  :: AbsPath
+-- /file.ext1.ext2/other/file.ext3
+-- >>> combine "file.ext1.ext2"  "other/file.ext3"  :: RelPath
+-- file.ext1.ext2/other/file.ext3
+-- >>> combine "." "file.ext" :: RelPath
+-- file.ext
+-- >>> combine "/" "file.ext" :: AbsPath
+-- /file.ext
+combine :: Path rel -> RelPath -> Path rel
+combine p1 p2
+    | isEmptyPath p1 && isEmptyPath p2 = emptyPath
+    | isEmptyPath p2 = p1
+    | isEmptyPath p1 = unsafePathTypeCoerse p2
+    | otherwise = Path
+        { pathPieces = pathPieces p1 ++ [combineLastAndExtensions (pathLastPiece p1) (pathExtensions p1)] ++ pathPieces p2
+        , pathLastPiece = pathLastPiece p2
+        , pathExtensions = pathExtensions p2
+        }
+
+-- | If the first path has extensions, they will be appended to the last
+-- pathpiece before concatenation
+--
+-- >>> "/directory/path" </> "another/path.ext" :: AbsPath
+-- /directory/path/another/path.ext
+-- >>> "directory/path"  </> "another/path.ext" :: RelPath
+-- directory/path/another/path.ext
+-- >>> "/file.ext1.ext2" </> "other/file.ext3"  :: AbsPath
+-- /file.ext1.ext2/other/file.ext3
+-- >>> "file.ext1.ext2"  </> "other/file.ext3"  :: RelPath
+-- file.ext1.ext2/other/file.ext3
+-- >>> "." </> "file.ext" :: RelPath
+-- file.ext
+-- >>> "/" </> "file.ext" :: AbsPath
+-- /file.ext
+(</>) :: Path rel -> RelPath -> Path rel
+(</>) = combine
+
+splitPath :: Path rel -> [PathPiece]
+splitPath = undefined
+
+joinPath :: [PathPiece] -> Path rel
+joinPath = undefined
 
 
 

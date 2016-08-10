@@ -36,6 +36,10 @@ spec = do
         it "produces valid pathpieces on valids" $ do
             producesValidsOnGens2 combineLastAndExtensions (genValid `suchThat` (not . emptyLastPathPiece)) genValid
 
+    describe "splitPiece" $ do
+        it "produces valid splits on valids" $ do
+            producesValidsOnValids splitPiece
+
     describe "relpath" $ do
         it "produces valid paths when it succeeds" $ do
             validIfSucceedsOnGen relpath arbitrary
@@ -129,19 +133,11 @@ spec = do
         it "is the inverse of the succeeding runs of relpath when starting with a fp without extensions" $ do
             inverseFunctionsIfSecondSucceedsOnGen toRelFilePath relpath $ snd <$> genRelPathNoExtensions
 
-        it "is the inverse of the succeeding runs of relpath when starting with a fp" $ do
-            pending
-            -- inverseFunctionsIfSecondSucceeds toRelFilePath relpath
-
         it "is the inverse of the succeeding runs of relpath when starting with a single-piece valid relpath" $ do
             inverseFunctionsIfFirstSucceedsOnGen relpath toRelFilePath $ fst <$> genRelPathSinglePieceFilePath
 
         it "is the inverse of the succeeding runs of relpath when starting with a valid relpath without extensions" $ do
             inverseFunctionsIfFirstSucceedsOnGen relpath toRelFilePath $ fst <$> genRelPathNoExtensions
-
-        it "is the inverse of the succeeding runs of relpath when starting with a valid relpath" $ do
-            pending
-            -- inverseFunctionsIfFirstSucceedsOnGen relpath toRelFilePath arbitrary
 
     describe "toAbsFilePath" $ do
         it "succeeds on these regression tests" $ do
@@ -182,8 +178,8 @@ spec = do
         it "produces the second element of the result of splitExtensions" $ do
             equivalent takeExtensions (snd . splitExtensions)
 
-        it "finds the extensions set by replaceExtensionss" $ do
-            forAll genUnchecked $ \path ->
+        it "finds the extensions set by replaceExtensionss for nonempty paths" $ do
+            forAll (genUnchecked `suchThat` (not . isEmptyPath)) $ \path ->
                 forAll genUnchecked $ \es ->
                     takeExtensions (replaceExtensionss path es) `shouldBe` es
 
@@ -251,7 +247,7 @@ spec = do
         it "is equivalent to null after takeExtension" $ do
             equivalentOnValid hasExtension (not . null . takeExtensions)
 
-    describe "</>" $ do
+    describe "combine" $ do
         it "produces valid paths" $ do
             producesValidsOnValids2 (</>)
 
@@ -263,6 +259,10 @@ spec = do
 
         it "Has a right identity: the empty path" $ do
             rightIdentityOnValid (</>) emptyPath
+
+    describe "</>" $ do
+        it "is equivalent to combine" $ do
+            equivalent2 combine (</>)
 
 genSpec :: Spec
 genSpec = describe "GenSpec" $ do
