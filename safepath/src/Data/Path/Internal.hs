@@ -11,7 +11,7 @@ import Data.Typeable
 import GHC.Generics
 import Data.Maybe (isJust, fromMaybe)
 import Data.String (IsString(..))
-import Data.List (intercalate)
+import Data.List (intercalate, foldl', stripPrefix)
 import Data.Data
 
 import Data.Text (Text)
@@ -173,6 +173,30 @@ abspath (c:fp)
   | c == pathSeparator = unsafePathTypeCoerse <$> relpath fp
   | otherwise = Nothing
 
+-- | Ground a filepath on an absolute path.
+-- This will try to parse the given @FilePath@ as an absolute path and take it
+-- if that works. Otherwise it will try to parse it an a relative path and
+-- append it to the given @AbsPath@
+--
+-- >>> ground "/home/user" "relative/path"
+-- Just /home/user/relative/path
+-- >>> ground "/home/user" "/absolute/path"
+-- Just /absolute/path
+-- >>> ground "/home/user" "."
+-- Just /home/user
+-- >>> ground "/home/user" "/"
+-- Just /
+-- >>> ground "/" "."
+-- Just /
+-- >>> ground "/anything" ""
+-- Nothing
+ground :: AbsPath -> FilePath -> Maybe AbsPath
+ground ap fp = case abspath fp of
+    Just a -> Just a
+    Nothing -> case relpath fp of
+        Just r -> Just $ ap </> r
+        Nothing -> Nothing
+
 -- | Construct a relative path, throwing an 'error'
 -- if 'relpath' would fail.
 unsafeRelPathError :: FilePath -> RelPath
@@ -310,6 +334,15 @@ addExtension path extension
 (<.>) :: Path rel -> Extension -> Path rel
 (<.>) = addExtension
 
+-- | Check whether the given filepath has any extensions
+--
+-- >>> hasExtension ("/directory/path.ext" :: AbsPath)
+-- True
+-- >>> hasExtension ("/directory/path"     :: AbsPath)
+-- False
+hasExtension :: Path rel -> Bool
+hasExtension = not . null . takeExtensions
+
 -- | Drop the last extension of a path
 --
 -- >>> dropExtension "dir/file.ext1.ext2" :: RelPath
@@ -399,26 +432,117 @@ replaceExtension path extension = dropExtension path <.> extension
 (-<.>) :: Path rel -> Extension -> Path rel
 (-<.>) = replaceExtension
 
--- | Ground a filepath on an absolute path.
--- This will try to parse the given @FilePath@ as an absolute path and take it
--- if that works. Otherwise it will try to parse it an a relative path and
--- append it to the given @AbsPath@
+-- | Take all extensions of a given path in the form of a list
 --
--- >>> ground "/home/user" "relative/path"
--- Just /home/user/relative/path
--- >>> ground "/home/user" "/absolute/path"
--- Just /absolute/path
--- >>> ground "/home/user" "."
--- Just /home/user
--- >>> ground "/home/user" "/"
--- Just /
--- >>> ground "/" "."
--- Just /
--- >>> ground "/anything" ""
+-- >>> takeExtensions ("/directory/path.ext" :: AbsPath)
+-- [ext]
+-- >>> takeExtensions ("file.tar.gz" :: RelPath)
+-- [tar,gz]
+takeExtensions :: Path rel -> [Extension]
+takeExtensions (Path _ _ es) = es
+
+-- | Add a list of extensions to a path
+--
+-- >>> addExtensions "/directory/path" ["ext1", "ext2"] :: AbsPath
+-- /directory/path.ext1.ext2
+-- >>> addExtensions "directory/path"  ["ext1", "ext2"] :: RelPath
+-- directory/path.ext1.ext2
+--
+-- >>> addExtensions "/directory/path.ext1" ["ext2", "ext3"] :: AbsPath
+-- /directory/path.ext1.ext2.ext3
+-- >>> addExtensions "directory/path.ext1"  ["ext2", "ext3"] :: RelPath
+-- directory/path.ext1.ext2.ext3
+--
+-- >>> addExtensions "." ["ext1", "ext2"] :: RelPath
+-- .
+-- >>> addExtensions "/" ["ext1", "ext2"] :: AbsPath
+-- /
+--
+-- This operation is an identity function if the given list of extensions
+-- is empty.
+addExtensions :: Path rel -> [Extension] -> Path rel
+addExtensions = foldl' addExtension
+
+-- | Replace all the extensions of a path with the given extension
+--
+-- >>> replaceExtensions "dir/file.ext1.ext2"  "ext3" :: RelPath
+-- dir/file.ext3
+-- >>> replaceExtensions "dir/file.ext1"       "ext3" :: RelPath
+-- dir/file.ext3
+-- >>> replaceExtensions "dir/file"            "ext3" :: RelPath
+-- dir/file.ext3
+-- >>> replaceExtensions "/dir/file.ext1.ext2" "ext3" :: AbsPath
+-- /dir/file.ext3
+-- >>> replaceExtensions "/dir/file.ext1"      "ext3" :: AbsPath
+-- /dir/file.ext3
+-- >>> replaceExtensions "/dir/file"           "ext3" :: AbsPath
+-- /dir/file.ext3
+-- >>> replaceExtensions "." "ext" :: RelPath
+-- .
+-- >>> replaceExtensions "/" "ext" :: AbsPath
+-- /
+replaceExtensions :: Path rel -> Extension -> Path rel
+replaceExtensions p e = replaceExtensionss p [e]
+
+-- | Replace all the extensions of a path with the given list of extensions
+--
+-- >>> replaceExtensionss "dir/file.ext1.ext2"  ["ext3", "ext4"] :: RelPath
+-- dir/file.ext3.ext4
+-- >>> replaceExtensionss "dir/file.ext1"       ["ext3", "ext4"] :: RelPath
+-- dir/file.ext3.ext4
+-- >>> replaceExtensionss "dir/file"            ["ext3", "ext4"] :: RelPath
+-- dir/file.ext3.ext4
+-- >>> replaceExtensionss "/dir/file.ext1.ext2" ["ext3", "ext4"] :: AbsPath
+-- /dir/file.ext3.ext4
+-- >>> replaceExtensionss "/dir/file.ext1"      ["ext3", "ext4"] :: AbsPath
+-- /dir/file.ext3.ext4
+-- >>> replaceExtensionss "/dir/file"           ["ext3", "ext4"] :: AbsPath
+-- /dir/file.ext3.ext4
+-- >>> replaceExtensionss "." ["ext1", "ext2"] :: RelPath
+-- .
+-- >>> replaceExtensionss "/" ["ext1", "ext2"] :: AbsPath
+-- /
+replaceExtensionss :: Path rel -> [Extension] -> Path rel
+replaceExtensionss p@(Path ps lp _) es
+  | isEmptyPath p = emptyPath
+  | otherwise = (Path ps lp es)
+
+
+-- | Drop the given extension from a FilePath.
+-- Fails if the FilePath does not have the given extension.
+--
+-- >>> stripExtension "foo.x.hs.o" "o"    :: Maybe RelPath
+-- Just foo.x.hs
+-- >>> stripExtension "foo.x.hs.o" "hs"   :: Maybe RelPath
 -- Nothing
-ground :: AbsPath -> FilePath -> Maybe AbsPath
-ground ap fp = case abspath fp of
-    Just a -> Just a
-    Nothing -> case relpath fp of
-        Just r -> Just $ ap </> r
-        Nothing -> Nothing
+-- >>> stripExtension "a.b.c.d"    "d"    :: Maybe RelPath
+-- Just a.b.c
+-- >>> stripExtension "foo.bar"    "baz"  :: Maybe RelPath
+-- Nothing
+-- >>> stripExtension "foobar"     "bar"  :: Maybe RelPath
+-- Nothing
+stripExtension :: Path rel -> Extension -> Maybe (Path rel)
+stripExtension p e = stripExtensions p [e]
+
+-- | Drop the given extensions from a FilePath.
+-- Fails if the FilePath does not have all of the given extensions.
+--
+-- >>> stripExtensions "foo.x.hs.o" ["hs", "o"]      :: Maybe RelPath
+-- Just foo.x
+-- >>> stripExtensions "foo.x.hs.o" ["o", "hs"]      :: Maybe RelPath
+-- Nothing
+-- >>> stripExtensions "a.b.c.d"    ["c", "d"]       :: Maybe RelPath
+-- Just a.b
+-- >>> stripExtensions "foo.bar"    ["baz", "quux"]  :: Maybe RelPath
+-- Nothing
+-- >>> stripExtensions "foobar"     ["bar"]          :: Maybe RelPath
+-- Nothing
+stripExtensions :: Path rel -> [Extension] -> Maybe (Path rel)
+stripExtensions (Path ps lp es) esq
+    = (Path ps lp . reverse) <$> stripPrefix (reverse esq) (reverse es)
+
+
+
+
+
+

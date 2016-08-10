@@ -24,14 +24,23 @@ module Data.Path
     , toRelFilePath
 
     -- * Functions involving extension
-    , addExtension
-    , (<.>)
+    , takeExtensions
+
+    , replaceExtension
+    , replaceExtensions
+    , replaceExtensionss
+    , (-<.>)
 
     , dropExtension
     , dropExtensions
 
-    , replaceExtension
-    , (-<.>)
+    , addExtension
+    , (<.>)
+
+    , stripExtension
+    , stripExtensions
+
+    , hasExtension
 
     -- * Combining paths
     , (</>)
