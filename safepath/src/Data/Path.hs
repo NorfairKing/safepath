@@ -15,13 +15,13 @@ module Data.Path
     , ground
 
     -- ** Constructing safe values unsafely
-    , unsafeAbsPathError
     , unsafeRelPathError
+    , unsafeAbsPathError
     , unsafeExtError
 
     -- * Rendering safe paths to 'FilePath's
-    , toAbsFilePath
     , toRelFilePath
+    , toAbsFilePath
 
     -- * Functions involving extension
     , takeExtensions
@@ -39,6 +39,8 @@ module Data.Path
 
     , stripExtension
     , stripExtensions
+
+    , splitExtensions
 
     , hasExtension
 

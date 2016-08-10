@@ -32,6 +32,10 @@ spec = do
     genSpec
     blackboxSpec
 
+    describe "combineLastAndExtensions" $ do
+        it "produces valid pathpieces on valids" $ do
+            producesValidsOnGens2 combineLastAndExtensions (genValid `suchThat` (not . emptyLastPathPiece)) genValid
+
     describe "relpath" $ do
         it "produces valid paths when it succeeds" $ do
             validIfSucceedsOnGen relpath arbitrary
@@ -50,14 +54,6 @@ spec = do
         it "succeeds on these black-box tests" $ do
             forM_ relativePathCases $ \(inp, path) ->
                 relpath inp `shouldBe` Just path
-
-    describe "unsafeRelPathError" $ do
-        it "behaves just like relpath except for errors" $ do
-            forAll uncheckedPath $ \fp ->
-                case relpath fp of
-                    Nothing -> evaluate (unsafeRelPathError fp) `shouldThrow` anyErrorCall
-                    Just res -> unsafeRelPathError fp `shouldBe` res
-
 
     describe "abspath" $ do
         it "produces valid paths when it succeeds" $ do
@@ -82,12 +78,32 @@ spec = do
             forM_ invalidAbsolutePaths $ \inp ->
                 abspath inp `shouldBe` Nothing
 
+    describe "ext" $ return ()
+
+    describe "ground" $ do
+        it "produces valid paths when it succeeds" $ do
+            validIfSucceedsOnGens2 ground genValid uncheckedPath
+
+    describe "unsafeRelPathError" $ do
+        it "behaves just like relpath except for errors" $ do
+            forAll uncheckedPath $ \fp ->
+                case relpath fp of
+                    Nothing -> evaluate (unsafeRelPathError fp) `shouldThrow` anyErrorCall
+                    Just res -> unsafeRelPathError fp `shouldBe` res
+
     describe "unsafeAbsPathError" $ do
         it "behaves just like relpath except for errors" $ do
             forAll uncheckedPath $ \fp ->
                 case relpath fp of
                     Nothing -> evaluate (unsafeRelPathError fp) `shouldThrow` anyErrorCall
                     Just res -> unsafeRelPathError fp `shouldBe` res
+
+    describe "unsafeExtError" $ do
+        it "behaves just like ext except for errors" $ do
+            forAll uncheckedPath $ \fp ->
+                case ext fp of
+                    Nothing -> evaluate (unsafeExtError fp) `shouldThrow` anyErrorCall
+                    Just res -> unsafeExtError fp `shouldBe` res
 
     describe "toRelFilePath" $ do
         it "succeeds on these regression tests" $ do
@@ -157,9 +173,46 @@ spec = do
             pending
             -- inverseFunctionsIfFirstSucceedsOnGen abspath toAbsFilePath arbitrary
 
-    describe "combineLastAndExtensions" $ do
-        it "produces valid pathpieces on valids" $ do
-            producesValidsOnGens2 combineLastAndExtensions (genValid `suchThat` (not . emptyLastPathPiece)) genValid
+    describe "takeExtensions" $ return ()
+
+    describe "replaceExtension" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids2 (-<.>)
+
+    describe "replaceExtensions" $ return ()
+    describe "replaceExtensionss" $ return ()
+
+    describe "-<.>" $ do
+        it "behaves exactly like replaceExtension" $ do
+            equivalent2 replaceExtension (-<.>)
+
+    describe "dropExtension" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids dropExtension
+
+    describe "dropExtensions" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids dropExtensions
+
+    describe "addExtension" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids2 addExtension
+
+    describe "<.>" $ do
+        it "behaves exactly like addExtension" $ do
+            equivalent2 addExtension (<.>)
+
+    describe "stripExtension" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids2 stripExtension
+
+    describe "stripExtensions" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids2 stripExtensions
+
+    describe "splitExtension" $ return ()
+
+    describe "hasExtension" $ return ()
 
     describe "</>" $ do
         it "produces valid paths" $ do
@@ -173,36 +226,6 @@ spec = do
 
         it "Has a right identity: the empty path" $ do
             rightIdentityOnValid (</>) emptyPath
-
-    describe "addExtension" $ do
-        it "produces valid paths" $ do
-            producesValidsOnValids2 addExtension
-
-    describe "<.>" $ do
-        it "behaves exactly like addExtension" $ do
-            equivalent2 addExtension (<.>)
-
-    describe "dropExtension" $ do
-        it "produces valid paths" $ do
-            producesValidsOnValids dropExtension
-
-    describe "dropExtensions" $ do
-        it "produces valid paths" $ do
-            producesValidsOnValids dropExtensions
-
-    describe "replaceExtension" $ do
-        it "produces valid paths" $ do
-            producesValidsOnValids2 (-<.>)
-
-    describe "-<.>" $ do
-        it "behaves exactly like replaceExtension" $ do
-            equivalent2 replaceExtension (-<.>)
-
-    describe "ground" $ do
-        it "produces valid paths when it succeeds" $ do
-            validIfSucceedsOnGens2 ground genValid uncheckedPath
-
-    -- TODO: describe "takeLastPiece" $ do
 
 genSpec :: Spec
 genSpec = describe "GenSpec" $ do

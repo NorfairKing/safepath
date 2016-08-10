@@ -541,6 +541,26 @@ stripExtensions :: Path rel -> [Extension] -> Maybe (Path rel)
 stripExtensions (Path ps lp es) esq
     = (Path ps lp . reverse) <$> stripPrefix (reverse esq) (reverse es)
 
+-- | Split off the extensions from a path
+--
+-- >>> splitExtensions ("dir/file.ext1.ext2" :: RelPath)
+-- (dir/file,[ext1,ext2])
+-- >>> splitExtensions ("dir/file.ext" :: RelPath)
+-- (dir/file,[ext])
+-- >>> splitExtensions ("dir/file" :: RelPath)
+-- (dir/file,[])
+-- >>> splitExtensions ("/dir/file.ext1.ext2" :: AbsPath)
+-- (/dir/file,[ext1,ext2])
+-- >>> splitExtensions ("/dir/file.ext" :: AbsPath)
+-- (/dir/file,[ext])
+-- >>> splitExtensions ("/dir/file" :: AbsPath)
+-- (/dir/file,[])
+-- >>> splitExtensions ("." :: RelPath)
+-- (.,[])
+-- >>> splitExtensions ("/" :: AbsPath)
+-- (/,[])
+splitExtensions :: Path rel -> (Path rel, [Extension])
+splitExtensions p = (dropExtensions p, takeExtensions p)
 
 
 
