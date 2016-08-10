@@ -78,7 +78,9 @@ spec = do
             forM_ invalidAbsolutePaths $ \inp ->
                 abspath inp `shouldBe` Nothing
 
-    describe "ext" $ return ()
+    describe "ext" $ do
+        it "produces valid paths when it succeeds" $ do
+            validIfSucceedsOnGen ext uncheckedPath
 
     describe "ground" $ do
         it "produces valid paths when it succeeds" $ do
@@ -173,14 +175,21 @@ spec = do
             pending
             -- inverseFunctionsIfFirstSucceedsOnGen abspath toAbsFilePath arbitrary
 
-    describe "takeExtensions" $ return ()
+    describe "takeExtensions" $ do
+        it "produces lists of extensions" $ do
+            producesValidsOnValids takeExtensions
 
     describe "replaceExtension" $ do
         it "produces valid paths" $ do
             producesValidsOnValids2 (-<.>)
 
-    describe "replaceExtensions" $ return ()
-    describe "replaceExtensionss" $ return ()
+    describe "replaceExtensions" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids2 replaceExtensions
+
+    describe "replaceExtensionss" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids2 replaceExtensionss
 
     describe "-<.>" $ do
         it "behaves exactly like replaceExtension" $ do
@@ -210,7 +219,14 @@ spec = do
         it "produces valid paths" $ do
             producesValidsOnValids2 stripExtensions
 
-    describe "splitExtension" $ return ()
+    describe "splitExtension" $ do
+        it "produces tuples of valid paths and a list of valid extensions" $ do
+            producesValidsOnValids splitExtensions
+
+        it "is the 'inverse' of addExtensions" $ do
+            forAll genValid $ \path -> do
+                let (stripped, exts) = splitExtensions path
+                addExtensions stripped exts `shouldBe` path
 
     describe "hasExtension" $ return ()
 
