@@ -6,6 +6,12 @@ module Data.Path
     , RelPath
     , Path() -- Opaque path on purpose
 
+    -- ** Safe path helper types
+    , PathPiece()     -- Opaque path on purpose
+    , LastPathPiece() -- Opaque path on purpose
+    , Extension()     -- Opaque path on purpose
+
+
     -- * Constructing safe values
 
     -- ** Constructing safe values safely

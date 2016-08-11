@@ -74,16 +74,34 @@ instance Validity (Path rel) where
         (LastPathPiece lt) = pathLastPiece
 
 newtype PathPiece = PathPiece Text
-    deriving (Show, Eq, Generic, Data, Typeable)
+    deriving (Eq, Generic, Data, Typeable)
+
+instance Show PathPiece where
+    show (PathPiece t) = T.unpack t
 
 instance Validity PathPiece where
     isValid (PathPiece t) = not (T.null t) && not (containsSeparator t)
 
+-- | ONLY for @OverloadedStrings@
+-- This instance instance is unsafe and should only be used at own risk,
+-- for literals
+instance IsString PathPiece where
+    fromString = unsafePathPieceError
+
 newtype LastPathPiece = LastPathPiece Text
-    deriving (Show, Eq, Generic, Data, Typeable)
+    deriving (Eq, Generic, Data, Typeable)
+
+instance Show LastPathPiece where
+    show (LastPathPiece t) = T.unpack t
 
 instance Validity LastPathPiece where
     isValid (LastPathPiece t) = not (containsSeparator t) && not (containsDot t)
+
+-- | ONLY for @OverloadedStrings@
+-- This instance instance is unsafe and should only be used at own risk,
+-- for literals
+instance IsString LastPathPiece where
+    fromString = unsafeLastPieceError
 
 newtype Extension = Extension Text
     deriving (Eq, Generic, Data, Typeable)
@@ -199,6 +217,26 @@ abspath (c:fp)
   | c == pathSeparator = unsafePathTypeCoerse <$> relpath fp
   | otherwise = Nothing
 
+-- | Construct a path piece safely
+--
+-- >>> pathpiece "file"
+-- Just file
+-- >>> pathpiece "with.dot"
+-- Just with.dot
+-- >>> pathpiece "with/slash"
+-- Nothing
+pathpiece :: String -> Maybe PathPiece
+pathpiece = constructValid . PathPiece . T.pack
+
+-- | Construct a last path piece safely
+--
+-- >>> lastpiece "file"
+-- Just file
+-- >>> lastpiece "with.dot"
+-- Nothing
+lastpiece :: String -> Maybe LastPathPiece
+lastpiece = constructValid . LastPathPiece . T.pack
+
 -- | Construct an extension safely
 --
 -- >>> ext "extension"
@@ -250,6 +288,18 @@ unsafeAbsPathError fp
     = constructValidUnsafe
     . fromMaybe (error $ "Invalid path: " ++ fp)
     . abspath $ fp
+
+unsafePathPieceError :: String -> PathPiece
+unsafePathPieceError s
+    = constructValidUnsafe
+    . fromMaybe (error $ "Invalid path piece: " ++ s)
+    . pathpiece $ s
+
+unsafeLastPieceError :: String -> LastPathPiece
+unsafeLastPieceError s
+    = constructValidUnsafe
+    . fromMaybe (error $ "Invalid last path piece: " ++ s)
+    . lastpiece $ s
 
 -- | Construct an extension, throwing an 'error' if 'ext' would fail.
 unsafeExtError :: String -> Extension
@@ -542,7 +592,8 @@ stripExtensions (Path ps lp es) esq
 splitExtensions :: Path rel -> (Path rel, [Extension])
 splitExtensions p = (dropExtensions p, takeExtensions p)
 
--- | Split a path into all but the last piece and the last piece and the extension
+-- | Split a path into all but the last piece and the last piece and the
+-- extensions
 --
 -- >>> splitFileName ("/directory/file.ext" :: AbsPath)
 -- (/directory,file.ext)
@@ -560,11 +611,27 @@ splitFileName (Path ps lp es)
               let (lp', es') = splitPiece lastp
               in (Path firsts lp' es', Path [] lp es)
 
+-- | Take the last piece and the extensions.
+--
+-- >>> takeFileName ("/directory/file.ext" :: AbsPath)
+-- file.ext
+-- >>> takeFileName ("file/bob.txt" :: RelPath)
+-- bob.txt
+-- >>> takeFileName ("file" :: RelPath)
+-- file
+-- >>> takeFileName ("dir.ext/file.ext" :: RelPath)
+-- file.ext
 takeFileName :: Path rel -> RelPath
-takeFileName = undefined
+takeFileName (Path _ lp es) = Path [] lp es
 
-replaceFileName :: Path rel -> LastPathPiece -> Path rel
-replaceFileName = undefined
+-- | Replace the last piece of a path with the given last piece.
+--
+-- >>> replaceFileName "/directory/other.txt" "file.ext" :: AbsPath
+-- /directory/file.ext
+replaceFileName :: Path rel -> PathPiece -> Path rel
+replaceFileName (Path ps _ _) p
+    = let (lp, es) = splitPiece p
+      in Path ps lp es
 
 dropFileName :: Path rel -> Path rel
 dropFileName = undefined
