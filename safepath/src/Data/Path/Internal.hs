@@ -635,6 +635,8 @@ replaceFileName (Path ps _ _) p
 
 -- | Drop the last piece of a path
 --
+-- >>> dropFileName "directory/file.ext" :: RelPath
+-- directory
 -- >>> dropFileName "/directory/file.ext" :: AbsPath
 -- /directory
 dropFileName :: Path rel -> Path rel
@@ -645,17 +647,30 @@ dropFileName (Path psc _ _)
             let (lp, es) = splitPiece p
             in Path ps lp es
 
+-- | Take the last piece (no extensions)
+--
+-- >>> takeBaseName ("file.ext" :: RelPath)
+-- file
+-- >>> takeBaseName ("dir/and/file.ext" :: RelPath)
+-- file
 takeBaseName :: Path rel -> LastPathPiece
-takeBaseName = undefined
+takeBaseName (Path _ lp _) = lp
 
+-- | Replace the last piece
+--
+-- >>> replaceBaseName "file.ext" "piece" :: RelPath
+-- piece.ext
 replaceBaseName :: Path rel -> LastPathPiece -> Path rel
-replaceBaseName = undefined
+replaceBaseName (Path ps _ es) lp = Path ps lp es
 
-takeDirectory :: Path rel -> Path rel
-takeDirectory = undefined
-
-replaceDirectory :: Path rel -> Path rel -> Path rel
-replaceDirectory = undefined
+-- | Replace everthing but the last piece
+--
+-- >>> replaceDirectory ("/dir/and/file" :: AbsPath) ("other/directory" :: RelPath)
+-- other/directory/file
+replaceDirectory :: Path r -> Path s -> Path s
+replaceDirectory (Path _ lp es) (Path ps' lp' es')
+    = let p = combineLastAndExtensions lp' es'
+      in Path (ps' ++ [p]) lp es
 
 -- | If the first path has extensions, they will be appended to the last
 -- pathpiece before concatenation
@@ -701,11 +716,24 @@ combine p1 p2
 (</>) :: Path rel -> RelPath -> Path rel
 (</>) = combine
 
+-- | Split a path up into pieces
+--
+-- >>> splitPath ("/a/full/absolute/directory/path" :: AbsPath)
+-- [a,full,absolute,directory,path]
 splitPath :: Path rel -> [PathPiece]
-splitPath = undefined
+splitPath (Path ps lp es) = ps ++ [combineLastAndExtensions lp es]
 
+-- | Join path pieces back into a path
+--
+-- >>> joinPath ["a", "full", "absolute", "directory", "path"] :: AbsPath
+-- /a/full/absolute/directory/path
 joinPath :: [PathPiece] -> Path rel
-joinPath = undefined
+joinPath ps =
+    case unsnoc ps of
+        Nothing -> emptyPath
+        Just (ips, p) ->
+            let (lp, es) = splitPiece p
+            in Path ips lp es
 
 
 
