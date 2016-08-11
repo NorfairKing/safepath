@@ -247,6 +247,12 @@ spec = do
         it "is equivalent to null after takeExtension" $ do
             equivalentOnValid hasExtension (not . null . takeExtensions)
 
+    describe "replaceFileName" $ return ()
+    describe "dropFileName" $ return ()
+    describe "takeBaseName" $ return ()
+    describe "takeDirectory" $ return ()
+    describe "replaceDirectory" $ return ()
+
     describe "combine" $ do
         it "produces valid paths" $ do
             producesValidsOnValids2 (</>)
@@ -263,6 +269,9 @@ spec = do
     describe "</>" $ do
         it "is equivalent to combine" $ do
             equivalent2 combine (</>)
+
+    describe "splitPath" $ return ()
+    describe "joinPath" $ return ()
 
 genSpec :: Spec
 genSpec = describe "GenSpec" $ do

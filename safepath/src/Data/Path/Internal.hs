@@ -633,8 +633,17 @@ replaceFileName (Path ps _ _) p
     = let (lp, es) = splitPiece p
       in Path ps lp es
 
+-- | Drop the last piece of a path
+--
+-- >>> dropFileName "/directory/file.ext" :: AbsPath
+-- /directory
 dropFileName :: Path rel -> Path rel
-dropFileName = undefined
+dropFileName (Path psc _ _)
+    = case unsnoc psc of
+        Nothing -> emptyPath
+        Just (ps, p) ->
+            let (lp, es) = splitPiece p
+            in Path ps lp es
 
 takeBaseName :: Path rel -> LastPathPiece
 takeBaseName = undefined
