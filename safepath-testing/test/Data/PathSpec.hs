@@ -34,7 +34,7 @@ spec = do
 
     describe "combineLastAndExtensions" $ do
         it "produces valid pathpieces on valids" $ do
-            producesValidsOnGens2 combineLastAndExtensions (genValid `suchThat` (not . emptyLastPathPiece)) genValid
+            producesValidsOnGens2 combineLastAndExtensions (genValid `suchThat` (not . isEmptyLastPathPiece)) genValid
 
     describe "splitPiece" $ do
         it "produces valid splits on valids" $ do
@@ -247,11 +247,24 @@ spec = do
         it "is equivalent to null after takeExtension" $ do
             equivalentOnValid hasExtension (not . null . takeExtensions)
 
-    describe "replaceFileName" $ return ()
-    describe "dropFileName" $ return ()
-    describe "takeBaseName" $ return ()
-    describe "takeDirectory" $ return ()
-    describe "replaceDirectory" $ return ()
+    describe "replaceFileName" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids2 replaceFileName
+
+    describe "dropFileName" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids dropFileName
+
+    describe "takeBaseName" $ do
+        it "produces valid last pieces" $ do
+            producesValidsOnValids2 replaceBaseName
+    describe "replaceBaseName" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids2 replaceBaseName
+
+    describe "replaceDirectory" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids2 replaceDirectory
 
     describe "combine" $ do
         it "produces valid paths" $ do
@@ -270,8 +283,13 @@ spec = do
         it "is equivalent to combine" $ do
             equivalent2 combine (</>)
 
-    describe "splitPath" $ return ()
-    describe "joinPath" $ return ()
+    describe "splitPath" $ do
+        it "produces lists of valid path pieces" $ do
+            producesValidsOnValids splitPath
+
+    describe "joinPath" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids joinPath
 
 genSpec :: Spec
 genSpec = describe "GenSpec" $ do

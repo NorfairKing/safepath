@@ -133,12 +133,14 @@ containsSeparator = containsSatisfied (== pathSeparator)
 containsDot :: Text -> Bool
 containsDot = containsSatisfied (== extensionSeparator)
 
-emptyLastPathPiece :: LastPathPiece -> Bool
-emptyLastPathPiece (LastPathPiece "") = True
-emptyLastPathPiece _ = False
+isEmptyLastPathPiece :: LastPathPiece -> Bool
+isEmptyLastPathPiece = (== emptyLastPathPiece)
+
+emptyLastPathPiece :: LastPathPiece
+emptyLastPathPiece = (LastPathPiece "")
 
 emptyPath :: Path rel
-emptyPath = (Path [] (LastPathPiece "") [])
+emptyPath = (Path [] emptyLastPathPiece [])
 
 isEmptyPath :: Path rel -> Bool
 isEmptyPath p = p == emptyPath
@@ -163,11 +165,14 @@ combineLastAndExtensions (LastPathPiece lpp) es
 splitPiece :: PathPiece -> (LastPathPiece, [Extension])
 splitPiece (PathPiece t) =
     let rawExts = filter (not . T.null) $ T.split (== extensionSeparator) t
-        lastPieceStr = head rawExts
-        safeExts = tail rawExts
-        lastPiece = LastPathPiece lastPieceStr
-        exts = map Extension safeExts
-    in (lastPiece, exts)
+    in case uncons rawExts of
+        Nothing -> (emptyLastPathPiece, [])
+        Just (lastPieceStr, safeExts) ->
+            let lastPieceStr = head rawExts
+                safeExts = tail rawExts
+                lastPiece = LastPathPiece lastPieceStr
+                exts = map Extension safeExts
+            in (lastPiece, exts)
 
 unsafePathTypeCoerse :: Path rel -> Path rel'
 unsafePathTypeCoerse (Path pieces lastPiece exts) = Path pieces lastPiece exts
@@ -721,12 +726,16 @@ combine p1 p2
 -- >>> splitPath ("/a/full/absolute/directory/path" :: AbsPath)
 -- [a,full,absolute,directory,path]
 splitPath :: Path rel -> [PathPiece]
-splitPath (Path ps lp es) = ps ++ [combineLastAndExtensions lp es]
+splitPath (Path ps lp es) = ps ++ filter isValid [combineLastAndExtensions lp es]
 
 -- | Join path pieces back into a path
 --
 -- >>> joinPath ["a", "full", "absolute", "directory", "path"] :: AbsPath
 -- /a/full/absolute/directory/path
+-- >>> joinPath [] :: RelPath
+-- .
+-- >>> joinPath [] :: AbsPath
+-- /
 joinPath :: [PathPiece] -> Path rel
 joinPath ps =
     case unsnoc ps of
