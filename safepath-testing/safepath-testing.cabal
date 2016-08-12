@@ -1,0 +1,76 @@
+name:                safepath-testing
+version:             0.1.0.0
+synopsis:            Tests and testing tools for safepath
+description:         Please see README.md
+homepage:            https://github.com/NorfairKing/safepath#readme
+license:             MIT
+license-file:        LICENSE
+author:              Tom Sydney Kerckhove
+maintainer:          syd.kerckhove@gmail.com
+copyright:           2016 Tom Sydney Kerckhove
+category:            System
+build-type:          Simple
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  exposed-modules:    
+      SafePathTest
+    , OptParse
+    , TestCase
+    , Data.Path.Gen
+    , Data.Path.IO
+  build-depends:      
+      base                  >= 4.7       && < 5
+    , safepath
+    , QuickCheck            >= 2.8       && < 2.9
+    , aeson                 >= 0.11      && < 0.12
+    , genvalidity           >= 0.2       && < 0.3
+    , genvalidity-hspec     >= 0.2.0.1   && < 0.3
+    , genvalidity-text      >= 0.1       && < 0.2
+    , hspec                 >= 2.2       && < 2.3
+    , mtl                   >= 2.2       && < 2.3
+    , optparse-applicative  >= 0.12      && < 0.13
+    , directory             >= 1.2       && < 1.3
+    , filepath              >= 1.4       && < 1.5
+    , text
+    , bytestring
+    , vector 
+  default-language:    Haskell2010
+
+executable safepath-test
+  main-is:             Main.hs
+  hs-source-dirs:      app
+  build-depends:
+      base
+    , safepath-testing
+  default-language:    Haskell2010
+
+test-suite safepath-tests
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:
+    Spec.hs
+  other-modules:
+      Data.PathSpec
+    , Data.RegressionTests
+  build-depends:
+      base
+    , safepath
+    , safepath-testing
+    , hspec                 >= 2.2       && < 2.3
+    , QuickCheck            >= 2.8       && < 2.9
+    , genvalidity           >= 0.2       && < 0.3
+    , genvalidity-text      >= 0.1       && < 0.2
+    , genvalidity-hspec     >= 0.2.0.1   && < 0.3
+    , aeson                 >= 0.11      && < 0.12
+    , deepseq               >= 1.4       && < 1.5
+    , directory  
+    , bytestring
+    , text
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/NorfairKing/safepath
