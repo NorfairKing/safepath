@@ -53,6 +53,20 @@ derived from safe paths.
 Great! This one does too.
 
 
+## More reasons for an opaque datatype
+
+- We can make a type-level distinction between absolute and relative paths and
+  encourage the usage of absolute paths everywhere.
+
+- We can guarantee more safety than we can with raw `String`s.
+
+- Now that there are a lot of tests, we can safely optimise the abstract
+  datatype for faster operations, less memory use, etc... without disrupting
+  usage.
+
+- We discourage the use of `String` in the rest of the application that is
+  being built.
+
 ## Consistency with `System.FilePath`
 
 Many functions have the same names as the functions in `System.FilePath`, but
