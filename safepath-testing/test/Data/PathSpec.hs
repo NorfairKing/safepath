@@ -34,7 +34,8 @@ spec = do
 
     describe "combineLastAndExtensions" $ do
         it "produces valid pathpieces on valids" $ do
-            producesValidsOnGens2 combineLastAndExtensions (genValid `suchThat` (not . isEmptyLastPathPiece)) genValid
+            producesValidsOnGens2 combineLastAndExtensions
+                (genValid `suchThat` (not . isEmptyLastPathPiece)) genValid
 
     describe "splitPiece" $ do
         it "produces valid splits on valids" $ do
@@ -257,7 +258,12 @@ spec = do
 
     describe "takeBaseName" $ do
         it "produces valid last pieces" $ do
-            producesValidsOnValids2 replaceBaseName
+            producesValidsOnValids takeBaseName
+
+    describe "replaceBaseNameExact" $ do
+        it "produces valid Maybe paths" $ do
+            producesValidsOnValids2 replaceBaseNameExact
+
     describe "replaceBaseName" $ do
         it "produces valid paths" $ do
             producesValidsOnValids2 replaceBaseName

@@ -168,9 +168,7 @@ splitPiece (PathPiece t) =
     in case uncons rawExts of
         Nothing -> (emptyLastPathPiece, [])
         Just (lastPieceStr, safeExts) ->
-            let lastPieceStr = head rawExts
-                safeExts = tail rawExts
-                lastPiece = LastPathPiece lastPieceStr
+            let lastPiece = LastPathPiece lastPieceStr
                 exts = map Extension safeExts
             in (lastPiece, exts)
 
@@ -650,7 +648,9 @@ dropFileName (Path psc _ _)
         Nothing -> emptyPath
         Just (ps, p) ->
             let (lp, es) = splitPiece p
-            in Path ps lp es
+            in if isEmptyLastPathPiece lp
+               then emptyPath -- TODO(syd) fixme: really ugly
+               else Path ps lp es
 
 -- | Take the last piece (no extensions)
 --
@@ -661,21 +661,50 @@ dropFileName (Path psc _ _)
 takeBaseName :: Path rel -> LastPathPiece
 takeBaseName (Path _ lp _) = lp
 
+-- | Replace the last piece exactly: fails on empty last piece
+--
+-- >>> replaceBaseNameExact "file.ext" "piece" :: Maybe RelPath
+-- Just piece.ext
+-- >>> replaceBaseNameExact "." "thing" :: Maybe RelPath
+-- Just thing
+-- >>> replaceBaseNameExact "/" "thing" :: Maybe AbsPath
+-- Just /thing
+-- >>> replaceBaseNameExact "/directory/file" "" :: Maybe AbsPath
+-- Nothing
+replaceBaseNameExact :: Path rel -> LastPathPiece -> Maybe (Path rel)
+replaceBaseNameExact (Path ps _ es) lp
+    | isEmptyLastPathPiece lp = Nothing
+    | otherwise = Just $ Path ps lp es
+
 -- | Replace the last piece
 --
 -- >>> replaceBaseName "file.ext" "piece" :: RelPath
 -- piece.ext
+-- >>> replaceBaseName "." "thing" :: RelPath
+-- thing
+-- >>> replaceBaseName "/" "thing" :: AbsPath
+-- /thing
+-- >>> replaceBaseName "/directory/file" "" :: AbsPath
+-- /directory
 replaceBaseName :: Path rel -> LastPathPiece -> Path rel
-replaceBaseName (Path ps _ es) lp = Path ps lp es
+replaceBaseName p@(Path ps _ es) lp
+    | isEmptyLastPathPiece lp = dropFileName p
+    | otherwise = Path ps lp es
 
 -- | Replace everthing but the last piece
 --
 -- >>> replaceDirectory ("/dir/and/file" :: AbsPath) ("other/directory" :: RelPath)
 -- other/directory/file
+-- >>> replaceDirectory ("." :: RelPath) ("a/directory" :: RelPath)
+-- a/directory
+-- >>> replaceDirectory ("/" :: AbsPath) ("a/directory" :: RelPath)
+-- a/directory
 replaceDirectory :: Path r -> Path s -> Path s
-replaceDirectory (Path _ lp es) (Path ps' lp' es')
-    = let p = combineLastAndExtensions lp' es'
-      in Path (ps' ++ [p]) lp es
+replaceDirectory p@(Path _ lp es) p'@(Path ps' lp' es')
+    | isEmptyPath p = p'
+    | otherwise =
+        let p = combineLastAndExtensions lp' es'
+        in Path (ps' ++ [p]) lp es
 
 -- | If the first path has extensions, they will be appended to the last
 -- pathpiece before concatenation
@@ -730,19 +759,21 @@ splitPath (Path ps lp es) = ps ++ filter isValid [combineLastAndExtensions lp es
 
 -- | Join path pieces back into a path
 --
--- >>> joinPath ["a", "full", "absolute", "directory", "path"] :: AbsPath
--- /a/full/absolute/directory/path
--- >>> joinPath [] :: RelPath
--- .
--- >>> joinPath [] :: AbsPath
--- /
-joinPath :: [PathPiece] -> Path rel
+-- >>> joinPath ["a", "full", "absolute", "directory", "path"] :: Maybe AbsPath
+-- Just /a/full/absolute/directory/path
+-- >>> joinPath [] :: Maybe RelPath
+-- Just .
+-- >>> joinPath [] :: Maybe AbsPath
+-- Just /
+-- >>> joinPath [".", "."] :: Maybe RelPath
+-- Nothing
+joinPath :: [PathPiece] -> Maybe (Path rel)
 joinPath ps =
     case unsnoc ps of
-        Nothing -> emptyPath
+        Nothing -> Just $ emptyPath
         Just (ips, p) ->
             let (lp, es) = splitPiece p
-            in Path ips lp es
+            in constructValid $ Path ips lp es
 
 
 
