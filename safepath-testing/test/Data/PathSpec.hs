@@ -272,6 +272,12 @@ spec = do
         it "produces valid paths" $ do
             producesValidsOnValids2 replaceDirectory
 
+        it "produces valid paths if the first argument is the empty path" $ do
+            producesValidsOnGens2 replaceDirectory (pure emptyPath) genValid
+
+        it "produces valid paths if the second argument is the empty path" $ do
+            producesValidsOnGens2 replaceDirectory genValid (pure emptyPath)
+
     describe "combine" $ do
         it "produces valid paths" $ do
             producesValidsOnValids2 (</>)

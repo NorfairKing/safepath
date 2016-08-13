@@ -699,9 +699,14 @@ replaceBaseName p@(Path ps _ es) lp
 -- a/directory
 -- >>> replaceDirectory ("/" :: AbsPath) ("a/directory" :: RelPath)
 -- a/directory
+-- >>> replaceDirectory ("dir/file" :: RelPath) ("." :: RelPath)
+-- file
+-- >>> replaceDirectory ("dir/file" :: RelPath) ("/" :: AbsPath)
+-- /file
 replaceDirectory :: Path r -> Path s -> Path s
 replaceDirectory p@(Path _ lp es) p'@(Path ps' lp' es')
     | isEmptyPath p = p'
+    | isEmptyPath p' = Path [] lp es
     | otherwise =
         let p = combineLastAndExtensions lp' es'
         in Path (ps' ++ [p]) lp es
