@@ -18,10 +18,10 @@ library
       Data.Path
     , Data.Path.Internal
   build-depends:
-      base                  >= 4.7   && < 5
-    , text                  >= 1.2   && < 1.3
-    , validity              >= 0.3   && < 0.4
-    , safe                  >= 0.3   && < 0.4
+      base                  >= 4.7       && < 5
+    , text                  >= 1.2       && < 1.3
+    , validity              >= 0.3.0.1   && < 0.4
+    , safe                  >= 0.3       && < 0.4
   default-language:    Haskell2010
 
 test-suite safepath-doctests

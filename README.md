@@ -1,4 +1,4 @@
-# `safepath`
+# `safepath` [![Build Status](https://travis-ci.org/NorfairKing/safepath.svg?branch=master)](https://travis-ci.org/NorfairKing/safepath)
 
 
 ## A reply to `filepath`

@@ -1,19 +1,12 @@
 flags: {}
 extra-package-dbs: []
 packages:
-- './safepath'
-- './safepath-testing'
-- location: /home/syd/validity/validity
-  extra-dep: true
-- location: /home/syd/validity/validity-containers
-  extra-dep: true
-- location: /home/syd/validity/genvalidity
-  extra-dep: true
-- location: /home/syd/validity/genvalidity-containers
-  extra-dep: true
-- location: /home/syd/validity/genvalidity-text
-  extra-dep: true
-- location: /home/syd/validity/genvalidity-hspec
-  extra-dep: true
+- ./safepath
+- ./safepath-testing
+extra-deps:
+- genvalidity-0.2.0.1
+- genvalidity-hspec-0.2.0.3
+- genvalidity-text-0.1.0.0
+- validity-0.3.0.1
 compiler: ghc-8.0.1
 resolver: nightly-2016-06-05
