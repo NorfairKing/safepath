@@ -45,6 +45,10 @@ coverage:
 		--coverage \
 		--test-arguments="--qc-max-success=10 --qc-max-size=10"
 
+heavytest:
+	stack test :safepath-tests \
+		--test-arguments="--qc-max-success=10000 --qc-max-size=20 --fail-fast"
+
 bench:
 	stack bench
 

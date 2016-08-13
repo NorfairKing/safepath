@@ -161,19 +161,11 @@ spec = do
         it "is the inverse of the succeeding runs of abspath when starting with a fp without extensions" $ do
             inverseFunctionsIfSecondSucceedsOnGen toAbsFilePath abspath $ snd <$> genAbsPathNoExtensions
 
-        it "is the inverse of the succeeding runs of abspath when starting with a fp" $ do
-            pending
-            -- inverseFunctionsIfSecondSucceeds toAbsFilePath abspath
-
         it "is the inverse of the succeeding runs of abspath when starting with a single-piece valid abspath" $ do
             inverseFunctionsIfFirstSucceedsOnGen abspath toAbsFilePath $ fst <$> genAbsPathSinglePieceFilePath
 
         it "is the inverse of the succeeding runs of abspath when starting with a valid abspath without extensions" $ do
             inverseFunctionsIfFirstSucceedsOnGen abspath toAbsFilePath $ fst <$> genAbsPathNoExtensions
-
-        it "is the inverse of the succeeding runs of relpath when starting with a valid abspath" $ do
-            pending
-            -- inverseFunctionsIfFirstSucceedsOnGen abspath toAbsFilePath arbitrary
 
     describe "takeExtensions" $ do
         it "produces lists of extensions" $ do

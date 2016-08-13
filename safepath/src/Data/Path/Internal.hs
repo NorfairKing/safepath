@@ -193,6 +193,7 @@ relpath [] = Nothing
 relpath fp@(c:rest)
     | c == extensionSeparator && null rest = Just emptyPath
     | c == pathSeparator = Nothing
+    | last fp == extensionSeparator = Nothing
     | otherwise = do
         let rawPieces = filter (not . T.null) $ T.split (== pathSeparator) $ T.pack fp
         (pieces, lastRawPiece) <- unsnoc $ map PathPiece rawPieces
