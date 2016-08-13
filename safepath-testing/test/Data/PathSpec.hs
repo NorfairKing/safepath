@@ -88,6 +88,9 @@ spec = do
             validIfSucceedsOnGen ext uncheckedPath
 
     describe "ground" $ do
+        it "produces valid paths when it succeeds if the first argument is the empty path" $ do
+            validIfSucceedsOnGens2 ground (pure emptyPath) uncheckedPath
+
         it "produces valid paths when it succeeds" $ do
             validIfSucceedsOnGens2 ground genValid uncheckedPath
 
@@ -186,17 +189,26 @@ spec = do
 
 
     describe "replaceExtension" $ do
+        it "produces valid paths if the first argument is the empty path" $ do
+            producesValidsOnGens2 replaceExtension (pure emptyPath) genValid
+
         it "produces valid paths" $ do
-            producesValidsOnValids2 (-<.>)
+            producesValidsOnValids2 replaceExtension
 
         it "is equivalent to addExtesion after dropExtension" $ do
             equivalent2 replaceExtension (\path ex -> addExtension (dropExtension path) ex)
 
     describe "replaceExtensions" $ do
+        it "produces valid paths if the first argument is the empty path" $ do
+            producesValidsOnGens2 replaceExtensions (pure emptyPath) genValid
+
         it "produces valid paths" $ do
             producesValidsOnValids2 replaceExtensions
 
     describe "replaceExtensionss" $ do
+        it "produces valid paths if the first argument is the empty path" $ do
+            producesValidsOnGens2 replaceExtensionss (pure emptyPath) genValid
+
         it "produces valid paths" $ do
             producesValidsOnValids2 replaceExtensionss
 
@@ -248,7 +260,17 @@ spec = do
         it "is equivalent to null after takeExtension" $ do
             equivalentOnValid hasExtension (not . null . takeExtensions)
 
+    describe "replaceFileNameExact" $ do
+        it "produces valid paths if the first argument is the empty path" $ do
+            producesValidsOnGens2 replaceFileNameExact (pure emptyPath) genValid
+
+        it "produces valid paths" $ do
+            producesValidsOnValids2 replaceFileNameExact
+
     describe "replaceFileName" $ do
+        it "produces valid paths if the first argument is the empty path" $ do
+            producesValidsOnGens2 replaceFileName (pure emptyPath) genValid
+
         it "produces valid paths" $ do
             producesValidsOnValids2 replaceFileName
 
@@ -261,22 +283,34 @@ spec = do
             producesValidsOnValids takeBaseName
 
     describe "replaceBaseNameExact" $ do
+        it "produces valid paths if the first argument is the empty path" $ do
+            producesValidsOnGens2 replaceBaseNameExact (pure emptyPath) genValid
+
+        it "produces valid paths if the second argument is the empty last path piece" $ do
+            producesValidsOnGens2 replaceBaseNameExact genValid (pure emptyLastPathPiece)
+
         it "produces valid Maybe paths" $ do
             producesValidsOnValids2 replaceBaseNameExact
 
     describe "replaceBaseName" $ do
+        it "produces valid paths if the first argument is the empty path" $ do
+            producesValidsOnGens2 replaceBaseName (pure emptyPath) genValid
+
+        it "produces valid paths if the second argument is the empty last path piece" $ do
+            producesValidsOnGens2 replaceBaseName genValid (pure emptyLastPathPiece)
+
         it "produces valid paths" $ do
             producesValidsOnValids2 replaceBaseName
 
     describe "replaceDirectory" $ do
-        it "produces valid paths" $ do
-            producesValidsOnValids2 replaceDirectory
-
         it "produces valid paths if the first argument is the empty path" $ do
             producesValidsOnGens2 replaceDirectory (pure emptyPath) genValid
 
         it "produces valid paths if the second argument is the empty path" $ do
             producesValidsOnGens2 replaceDirectory genValid (pure emptyPath)
+
+        it "produces valid paths" $ do
+            producesValidsOnValids2 replaceDirectory
 
     describe "combine" $ do
         it "produces valid paths" $ do

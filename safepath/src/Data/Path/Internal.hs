@@ -629,12 +629,43 @@ takeFileName (Path _ lp es) = Path [] lp es
 
 -- | Replace the last piece of a path with the given last piece.
 --
+-- >>> replaceFileNameExact "/directory/other.txt" "file.ext" :: Maybe AbsPath
+-- Just /directory/file.ext
+-- >>> replaceFileNameExact "." "file.ext" :: Maybe RelPath
+-- Just file.ext
+-- >>> replaceFileNameExact "/" "file.ext" :: Maybe AbsPath
+-- Just /file.ext
+--
+-- If the given path piece is degenerate, this is what happens:
+--
+-- >>> replaceFileNameExact "/directory/other.txt" ".." :: Maybe AbsPath
+-- Nothing
+replaceFileNameExact :: Path rel -> PathPiece -> Maybe (Path rel)
+replaceFileNameExact (Path ps _ _) p
+    = let (lp, es) = splitPiece p
+      in if isEmptyLastPathPiece lp
+         && (not (null es) || not (null ps))
+          then Nothing
+          else Just $ Path ps lp es
+
+-- | Replace the last piece of a path with the given last piece.
+--
 -- >>> replaceFileName "/directory/other.txt" "file.ext" :: AbsPath
 -- /directory/file.ext
+-- >>> replaceFileName "." "file.ext" :: RelPath
+-- file.ext
+-- >>> replaceFileName "/" "file.ext" :: AbsPath
+-- /file.ext
+--
+-- If the given path piece is degenerate, this is what happens:
+--
+-- >>> replaceFileName "/directory/other.txt" ".." :: AbsPath
+-- /directory
 replaceFileName :: Path rel -> PathPiece -> Path rel
-replaceFileName (Path ps _ _) p
-    = let (lp, es) = splitPiece p
-      in Path ps lp es
+replaceFileName path p
+    = case replaceFileNameExact path p of
+        Nothing -> dropFileName path
+        Just rs -> rs
 
 -- | Drop the last piece of a path
 --
