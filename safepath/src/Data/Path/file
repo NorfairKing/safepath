@@ -1,0 +1,25 @@
+-- | Check if a given character is a valid path separator
+--
+-- >>> isPathSeparator pathSeparator
+-- True
+isPathSeparator :: Char -> Bool
+isPathSeparator = (== pathSeparator)
+
+extensionSeparator :: Char
+extensionSeparator = '.'
+
+extensionSeparators :: [Char]
+extensionSeparators = [extensionSeparator]
+
+-- | Check if a given character is a valid extension separator
+--
+-- >>> isExtensionSeparator extensionSeparator
+-- True
+isExtensionSeparator :: Char -> Bool
+isExtensionSeparator = (== extensionSeparator)
+
+containsSatisfied :: (Char -> Bool) -> Text -> Bool
+containsSatisfied func = isJust . T.find func
+
+containsSeparator :: Text -> Bool
+containsSeparator = containsSatisfied (== pathSeparator)

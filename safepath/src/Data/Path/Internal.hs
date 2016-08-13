@@ -16,16 +16,8 @@ import Data.Data
 
 import Data.Text (Text)
 import qualified Data.Text as T
-import Safe
 
 import Data.Validity
-
-unsnoc :: [a] -> Maybe ([a], a)
-unsnoc as = (,) <$> initMay as <*> lastMay as
-
-uncons :: [a] -> Maybe (a, [a])
-uncons [] = Nothing
-uncons (a:as) = Just (a, as)
 
 type AbsPath = Path Absolute
 type RelPath = Path Relative
@@ -95,7 +87,7 @@ instance Show LastPathPiece where
     show (LastPathPiece t) = T.unpack t
 
 instance Validity LastPathPiece where
-    isValid (LastPathPiece t) = not (containsSeparator t) && not (containsDot t)
+    isValid (LastPathPiece t) = not (containsSeparator t) && not (containsExtension t)
 
 -- | ONLY for @OverloadedStrings@
 -- This instance instance is unsafe and should only be used at own risk,
@@ -116,64 +108,42 @@ instance IsString Extension where
     fromString = unsafeExtError
 
 instance Validity Extension where
-    isValid (Extension t) = not (T.null t) && not (containsDot t) && not (containsSeparator t)
+    isValid (Extension t) = not (T.null t) && not (containsExtension t) && not (containsSeparator t)
 
 pathSeparator :: Char
 pathSeparator = '/'
 
+pathSeparators :: [Char]
+pathSeparators = [pathSeparator]
+
+-- | Check if a given character is a valid path separator
+--
+-- >>> isPathSeparator pathSeparator
+-- True
+isPathSeparator :: Char -> Bool
+isPathSeparator = (== pathSeparator)
+
 extensionSeparator :: Char
 extensionSeparator = '.'
+
+extensionSeparators :: [Char]
+extensionSeparators = [extensionSeparator]
+
+-- | Check if a given character is a valid extension separator
+--
+-- >>> isExtensionSeparator extensionSeparator
+-- True
+isExtensionSeparator :: Char -> Bool
+isExtensionSeparator = (== extensionSeparator)
 
 containsSatisfied :: (Char -> Bool) -> Text -> Bool
 containsSatisfied func = isJust . T.find func
 
 containsSeparator :: Text -> Bool
-containsSeparator = containsSatisfied (== pathSeparator)
+containsSeparator = containsSatisfied isPathSeparator
 
-containsDot :: Text -> Bool
-containsDot = containsSatisfied (== extensionSeparator)
-
-isEmptyLastPathPiece :: LastPathPiece -> Bool
-isEmptyLastPathPiece = (== emptyLastPathPiece)
-
-emptyLastPathPiece :: LastPathPiece
-emptyLastPathPiece = (LastPathPiece "")
-
-emptyPath :: Path rel
-emptyPath = (Path [] emptyLastPathPiece [])
-
-isEmptyPath :: Path rel -> Bool
-isEmptyPath p = p == emptyPath
-
-renderPiece :: PathPiece -> String
-renderPiece (PathPiece p) = T.unpack p
-
-renderLastPiece :: LastPathPiece -> String
-renderLastPiece (LastPathPiece p) = T.unpack p
-
-renderExtension :: Extension -> String
-renderExtension (Extension e) = T.unpack e
-
-renderExtensions :: [Extension] -> String
-renderExtensions [] = ""
-renderExtensions es = [extensionSeparator] ++ intercalate [extensionSeparator] (map renderExtension es)
-
-combineLastAndExtensions :: LastPathPiece -> [Extension] -> PathPiece
-combineLastAndExtensions (LastPathPiece lpp) es
-    = PathPiece $ lpp <> T.pack (renderExtensions es)
-
-splitPiece :: PathPiece -> (LastPathPiece, [Extension])
-splitPiece (PathPiece t) =
-    let rawExts = filter (not . T.null) $ T.split (== extensionSeparator) t
-    in case uncons rawExts of
-        Nothing -> (emptyLastPathPiece, [])
-        Just (lastPieceStr, safeExts) ->
-            let lastPiece = LastPathPiece lastPieceStr
-                exts = map Extension safeExts
-            in (lastPiece, exts)
-
-unsafePathTypeCoerse :: Path rel -> Path rel'
-unsafePathTypeCoerse (Path pieces lastPiece exts) = Path pieces lastPiece exts
+containsExtension :: Text -> Bool
+containsExtension = containsSatisfied isExtensionSeparator
 
 -- | Construct a relative path from a 'FilePath', failing if
 -- the given 'FilePath' does not represent a valid relative path.
@@ -193,6 +163,7 @@ relpath [] = Nothing
 relpath fp@(c:rest)
     | c == extensionSeparator && null rest = Just emptyPath
     | c == pathSeparator = Nothing
+    | last fp == extensionSeparator = Nothing
     | otherwise = do
         let rawPieces = filter (not . T.null) $ T.split (== pathSeparator) $ T.pack fp
         (pieces, lastRawPiece) <- unsnoc $ map PathPiece rawPieces
@@ -323,101 +294,29 @@ toAbsFilePath :: AbsPath -> FilePath
 toAbsFilePath (Path [] (LastPathPiece "") []) = [pathSeparator]
 toAbsFilePath p = (pathSeparator:) . toRelFilePath . unsafePathTypeCoerse $ p
 
--- | Add an extension to a path
+-- | Take the last extension of a filepath
 --
--- >>> addExtension "/directory/path" "ext" :: AbsPath
--- /directory/path.ext
--- >>> addExtension "directory/path"  "ext" :: RelPath
--- directory/path.ext
+-- >>> takeExtension ("/directory/path.ext" :: AbsPath)
+-- Just ext
+-- >>> takeExtension ("file.tar.gz" :: RelPath)
+-- Just gz
+-- >>> takeExtension ("file" :: RelPath)
+-- Nothing
 --
--- This will not override the extension if there already is an extension.
--- It will only add the given extension on top of it
---
--- >>> addExtension "/directory/path.ext1" "ext2" :: AbsPath
--- /directory/path.ext1.ext2
--- >>> addExtension "directory/path.ext1"  "ext2" :: RelPath
--- directory/path.ext1.ext2
---
--- This will not add an extension if the path is empty.
---
--- >>> addExtension "." "ext" :: RelPath
--- .
--- >>> addExtension "/" "ext" :: AbsPath
--- /
-addExtension :: Path rel -> Extension -> Path rel
-addExtension path extension
-    | isEmptyPath path = path
-    | otherwise = path
-      { pathExtensions = pathExtensions path ++ [extension] }
+-- Replaces @System.FilePath.takeExtension@
+takeExtension :: Path rel -> Maybe Extension
+takeExtension (Path _ _ es) = lastMay es
 
--- | Add an extension to a path (equivalent to 'addExtension')
+-- | Take all extensions of a given path in the form of a list
 --
--- >>> "/directory/path" <.> "ext" :: AbsPath
--- /directory/path.ext
--- >>> "directory/path"  <.> "ext" :: RelPath
--- directory/path.ext
--- >>> "/directory/path.ext1" <.> "ext2" :: AbsPath
--- /directory/path.ext1.ext2
--- >>> "directory/path.ext1"  <.> "ext2" :: RelPath
--- directory/path.ext1.ext2
--- >>> "." <.> "ext" :: RelPath
--- .
--- >>> "/" <.> "ext" :: AbsPath
--- /
-(<.>) :: Path rel -> Extension -> Path rel
-(<.>) = addExtension
-
--- | Check whether the given filepath has any extensions
+-- >>> takeExtensions ("/directory/path.ext" :: AbsPath)
+-- [ext]
+-- >>> takeExtensions ("file.tar.gz" :: RelPath)
+-- [tar,gz]
 --
--- >>> hasExtension ("/directory/path.ext" :: AbsPath)
--- True
--- >>> hasExtension ("/directory/path"     :: AbsPath)
--- False
-hasExtension :: Path rel -> Bool
-hasExtension = not . null . takeExtensions
-
--- | Drop the last extension of a path
---
--- >>> dropExtension "dir/file.ext1.ext2" :: RelPath
--- dir/file.ext1
--- >>> dropExtension "dir/file.ext" :: RelPath
--- dir/file
--- >>> dropExtension "dir/file" :: RelPath
--- dir/file
--- >>> dropExtension "/dir/file.ext1.ext2" :: AbsPath
--- /dir/file.ext1
--- >>> dropExtension "/dir/file.ext" :: AbsPath
--- /dir/file
--- >>> dropExtension "/dir/file" :: AbsPath
--- /dir/file
--- >>> dropExtension "." :: RelPath
--- .
--- >>> dropExtension "/" :: AbsPath
--- /
-dropExtension :: Path rel -> Path rel
-dropExtension path = path
-    { pathExtensions = reverse . drop 1 . reverse $ pathExtensions path }
-
--- | Drop all extensions of a path
---
--- >>> dropExtensions "dir/file.ext1.ext2" :: RelPath
--- dir/file
--- >>> dropExtensions "dir/file.ext" :: RelPath
--- dir/file
--- >>> dropExtensions "dir/file" :: RelPath
--- dir/file
--- >>> dropExtensions "/dir/file.ext1.ext2" :: AbsPath
--- /dir/file
--- >>> dropExtensions "/dir/file.ext" :: AbsPath
--- /dir/file
--- >>> dropExtensions "/dir/file" :: AbsPath
--- /dir/file
--- >>> dropExtensions "." :: RelPath
--- .
--- >>> dropExtensions "/" :: AbsPath
--- /
-dropExtensions :: Path rel -> Path rel
-dropExtensions (Path ps lp _) = Path ps lp []
+-- Replaces @System.FilePath.takeExtensions@
+takeExtensions :: Path rel -> [Extension]
+takeExtensions (Path _ _ es) = es
 
 -- | Replace the last extension of a path
 --
@@ -441,6 +340,10 @@ dropExtensions (Path ps lp _) = Path ps lp []
 -- .
 -- >>> replaceExtension "/" "ext" :: AbsPath
 -- /
+--
+-- Replaces @System.FilePath.replaceExtension@
+
+-- TODO(syd) exact version
 replaceExtension :: Path rel -> Extension -> Path rel
 replaceExtension path extension = dropExtension path <.> extension
 
@@ -462,39 +365,10 @@ replaceExtension path extension = dropExtension path <.> extension
 -- .
 -- >>> "/" -<.> "ext" :: AbsPath
 -- /
+--
+-- Replaces @System.FilePath.(-<.>)@
 (-<.>) :: Path rel -> Extension -> Path rel
 (-<.>) = replaceExtension
-
--- | Take all extensions of a given path in the form of a list
---
--- >>> takeExtensions ("/directory/path.ext" :: AbsPath)
--- [ext]
--- >>> takeExtensions ("file.tar.gz" :: RelPath)
--- [tar,gz]
-takeExtensions :: Path rel -> [Extension]
-takeExtensions (Path _ _ es) = es
-
--- | Add a list of extensions to a path
---
--- >>> addExtensions "/directory/path" ["ext1", "ext2"] :: AbsPath
--- /directory/path.ext1.ext2
--- >>> addExtensions "directory/path"  ["ext1", "ext2"] :: RelPath
--- directory/path.ext1.ext2
---
--- >>> addExtensions "/directory/path.ext1" ["ext2", "ext3"] :: AbsPath
--- /directory/path.ext1.ext2.ext3
--- >>> addExtensions "directory/path.ext1"  ["ext2", "ext3"] :: RelPath
--- directory/path.ext1.ext2.ext3
---
--- >>> addExtensions "." ["ext1", "ext2"] :: RelPath
--- .
--- >>> addExtensions "/" ["ext1", "ext2"] :: AbsPath
--- /
---
--- This operation is an identity function if the given list of extensions
--- is empty.
-addExtensions :: Path rel -> [Extension] -> Path rel
-addExtensions = foldl' addExtension
 
 -- | Replace all the extensions of a path with the given extension
 --
@@ -514,6 +388,8 @@ addExtensions = foldl' addExtension
 -- .
 -- >>> replaceExtensions "/" "ext" :: AbsPath
 -- /
+
+-- TODO(syd) exact version
 replaceExtensions :: Path rel -> Extension -> Path rel
 replaceExtensions p e = replaceExtensionss p [e]
 
@@ -540,6 +416,127 @@ replaceExtensionss p@(Path ps lp _) es
   | isEmptyPath p = emptyPath
   | otherwise = (Path ps lp es)
 
+-- | Drop the last extension of a path
+--
+-- >>> dropExtension "dir/file.ext1.ext2" :: RelPath
+-- dir/file.ext1
+-- >>> dropExtension "dir/file.ext" :: RelPath
+-- dir/file
+-- >>> dropExtension "dir/file" :: RelPath
+-- dir/file
+-- >>> dropExtension "/dir/file.ext1.ext2" :: AbsPath
+-- /dir/file.ext1
+-- >>> dropExtension "/dir/file.ext" :: AbsPath
+-- /dir/file
+-- >>> dropExtension "/dir/file" :: AbsPath
+-- /dir/file
+-- >>> dropExtension "." :: RelPath
+-- .
+-- >>> dropExtension "/" :: AbsPath
+-- /
+--
+-- Replaces @System.FilePath.dropExtension@
+
+-- TODO(syd) exact version
+dropExtension :: Path rel -> Path rel
+dropExtension path = path
+    { pathExtensions = reverse . drop 1 . reverse $ pathExtensions path }
+
+-- | Drop all extensions of a path
+--
+-- >>> dropExtensions "dir/file.ext1.ext2" :: RelPath
+-- dir/file
+-- >>> dropExtensions "dir/file.ext" :: RelPath
+-- dir/file
+-- >>> dropExtensions "dir/file" :: RelPath
+-- dir/file
+-- >>> dropExtensions "/dir/file.ext1.ext2" :: AbsPath
+-- /dir/file
+-- >>> dropExtensions "/dir/file.ext" :: AbsPath
+-- /dir/file
+-- >>> dropExtensions "/dir/file" :: AbsPath
+-- /dir/file
+-- >>> dropExtensions "." :: RelPath
+-- .
+-- >>> dropExtensions "/" :: AbsPath
+-- /
+--
+-- Replaces @System.FilePath.dropExtensions@
+
+-- TODO(syd) exact version
+dropExtensions :: Path rel -> Path rel
+dropExtensions (Path ps lp _) = Path ps lp []
+
+-- | Add an extension to a path
+--
+-- >>> addExtension "/directory/path" "ext" :: AbsPath
+-- /directory/path.ext
+-- >>> addExtension "directory/path"  "ext" :: RelPath
+-- directory/path.ext
+--
+-- This will not override the extension if there already is an extension.
+-- It will only add the given extension on top of it
+--
+-- >>> addExtension "/directory/path.ext1" "ext2" :: AbsPath
+-- /directory/path.ext1.ext2
+-- >>> addExtension "directory/path.ext1"  "ext2" :: RelPath
+-- directory/path.ext1.ext2
+--
+-- This will not add an extension if the path is empty.
+--
+-- >>> addExtension "." "ext" :: RelPath
+-- .
+-- >>> addExtension "/" "ext" :: AbsPath
+-- /
+--
+-- Replaces @System.FilePath.addExtension@
+addExtension :: Path rel -> Extension -> Path rel
+addExtension path extension
+    | isEmptyPath path = path
+    | otherwise = path
+      { pathExtensions = pathExtensions path ++ [extension] }
+
+-- | Add an extension to a path (equivalent to 'addExtension')
+--
+-- >>> "/directory/path" <.> "ext" :: AbsPath
+-- /directory/path.ext
+-- >>> "directory/path"  <.> "ext" :: RelPath
+-- directory/path.ext
+-- >>> "/directory/path.ext1" <.> "ext2" :: AbsPath
+-- /directory/path.ext1.ext2
+-- >>> "directory/path.ext1"  <.> "ext2" :: RelPath
+-- directory/path.ext1.ext2
+-- >>> "." <.> "ext" :: RelPath
+-- .
+-- >>> "/" <.> "ext" :: AbsPath
+-- /
+--
+-- Replaces @System.FilePath.(<.>)@
+(<.>) :: Path rel -> Extension -> Path rel
+(<.>) = addExtension
+
+-- | Add a list of extensions to a path
+--
+-- >>> addExtensions "/directory/path" ["ext1", "ext2"] :: AbsPath
+-- /directory/path.ext1.ext2
+-- >>> addExtensions "directory/path"  ["ext1", "ext2"] :: RelPath
+-- directory/path.ext1.ext2
+--
+-- >>> addExtensions "/directory/path.ext1" ["ext2", "ext3"] :: AbsPath
+-- /directory/path.ext1.ext2.ext3
+-- >>> addExtensions "directory/path.ext1"  ["ext2", "ext3"] :: RelPath
+-- directory/path.ext1.ext2.ext3
+--
+-- >>> addExtensions "." ["ext1", "ext2"] :: RelPath
+-- .
+-- >>> addExtensions "/" ["ext1", "ext2"] :: AbsPath
+-- /
+--
+-- This operation is an identity function if the given list of extensions
+-- is empty.
+addExtensions :: Path rel -> [Extension] -> Path rel
+addExtensions = foldl' addExtension
+
 
 -- | Drop the given extension from a FilePath.
 -- Fails if the FilePath does not have the given extension.
@@ -554,6 +551,8 @@ replaceExtensionss p@(Path ps lp _) es
 -- Nothing
 -- >>> stripExtension "foobar"     "bar"  :: Maybe RelPath
 -- Nothing
+--
+-- Replaces @System.FilePath.stripExtension@
 stripExtension :: Path rel -> Extension -> Maybe (Path rel)
 stripExtension p e = stripExtensions p [e]
 
@@ -576,6 +575,29 @@ stripExtensions (Path ps lp es) esq
 
 -- | Split off the extensions from a path
 --
+-- >>> splitExtension ("dir/file.ext1.ext2" :: RelPath)
+-- Just (dir/file.ext1,ext2)
+-- >>> splitExtension ("dir/file.ext" :: RelPath)
+-- Just (dir/file,ext)
+-- >>> splitExtension ("dir/file" :: RelPath)
+-- Nothing
+-- >>> splitExtension ("/dir/file.ext1.ext2" :: AbsPath)
+-- Just (/dir/file.ext1,ext2)
+-- >>> splitExtension ("/dir/file.ext" :: AbsPath)
+-- Just (/dir/file,ext)
+-- >>> splitExtension ("/dir/file" :: AbsPath)
+-- Nothing
+-- >>> splitExtension ("." :: RelPath)
+-- Nothing
+-- >>> splitExtension ("/" :: AbsPath)
+-- Nothing
+--
+-- Replaces @System.FilePath.splitExtension@
+splitExtension :: Path rel -> Maybe (Path rel, Extension)
+splitExtension p = (,) (dropExtension p) <$> takeExtension p
+
+-- | Split off the extensions from a path
+--
 -- >>> splitExtensions ("dir/file.ext1.ext2" :: RelPath)
 -- (dir/file,[ext1,ext2])
 -- >>> splitExtensions ("dir/file.ext" :: RelPath)
@@ -594,6 +616,17 @@ stripExtensions (Path ps lp es) esq
 -- (/,[])
 splitExtensions :: Path rel -> (Path rel, [Extension])
 splitExtensions p = (dropExtensions p, takeExtensions p)
+
+-- | Check whether the given filepath has any extensions
+--
+-- >>> hasExtension ("/directory/path.ext" :: AbsPath)
+-- True
+-- >>> hasExtension ("/directory/path"     :: AbsPath)
+-- False
+--
+-- Replaces @System.FilePath.hasExtension@
+hasExtension :: Path rel -> Bool
+hasExtension = not . null . takeExtensions
 
 -- | Split a path into all but the last piece and the last piece and the
 -- extensions
@@ -614,7 +647,32 @@ splitFileName (Path ps lp es)
               let (lp', es') = splitPiece lastp
               in (Path firsts lp' es', Path [] lp es)
 
+-- | Take the last piece and the extensions, exactly.
+--
+-- This will evaluate to 'Nothing' if the given path is empty
+--
+-- >>> takeFileNameExact ("/directory/file.ext" :: AbsPath)
+-- Just file.ext
+-- >>> takeFileNameExact ("file/bob.txt" :: RelPath)
+-- Just bob.txt
+-- >>> takeFileNameExact ("file" :: RelPath)
+-- Just file
+-- >>> takeFileNameExact ("dir.ext/file.ext" :: RelPath)
+-- Just file.ext
+-- >>> takeFileNameExact ("." :: RelPath)
+-- Nothing
+-- >>> takeFileNameExact ("/" :: AbsPath)
+-- Nothing
+--
+-- Replaces @System.FilePath.takeFileName@
+takeFileNameExact :: Path rel -> Maybe RelPath
+takeFileNameExact p@(Path _ lp es)
+    | isEmptyPath p = Nothing
+    | otherwise = Just $ Path [] lp es
+
 -- | Take the last piece and the extensions.
+--
+-- This will evaluate to the empty (relative) path if the given path is empty.
 --
 -- >>> takeFileName ("/directory/file.ext" :: AbsPath)
 -- file.ext
@@ -624,33 +682,119 @@ splitFileName (Path ps lp es)
 -- file
 -- >>> takeFileName ("dir.ext/file.ext" :: RelPath)
 -- file.ext
+-- >>> takeFileName ("." :: RelPath)
+-- .
+-- >>> takeFileName ("/" :: AbsPath)
+-- .
+--
+-- Replaces @System.FilePath.takeFileName@
 takeFileName :: Path rel -> RelPath
-takeFileName (Path _ lp es) = Path [] lp es
+takeFileName p
+    = case takeFileNameExact p of
+          Nothing -> emptyPath
+          Just r  -> r
+
+-- | Replace the last piece of a path with the given last piece.
+--
+-- >>> replaceFileNameExact "/directory/other.txt" "file.ext" :: Maybe AbsPath
+-- Just /directory/file.ext
+-- >>> replaceFileNameExact "." "file.ext" :: Maybe RelPath
+-- Just file.ext
+-- >>> replaceFileNameExact "/" "file.ext" :: Maybe AbsPath
+-- Just /file.ext
+--
+-- If the given path piece is degenerate, this is what happens:
+--
+-- >>> replaceFileNameExact "/directory/other.txt" "..." :: Maybe AbsPath
+-- Nothing
+replaceFileNameExact :: Path rel -> PathPiece -> Maybe (Path rel)
+replaceFileNameExact (Path ps _ _) p
+    = let (lp, es) = splitPiece p
+      in if isEmptyLastPathPiece lp
+         && (not (null es) || not (null ps))
+          then Nothing
+          else Just $ Path ps lp es
 
 -- | Replace the last piece of a path with the given last piece.
 --
 -- >>> replaceFileName "/directory/other.txt" "file.ext" :: AbsPath
 -- /directory/file.ext
-replaceFileName :: Path rel -> PathPiece -> Path rel
-replaceFileName (Path ps _ _) p
-    = let (lp, es) = splitPiece p
-      in Path ps lp es
-
--- | Drop the last piece of a path
+-- >>> replaceFileName "." "file.ext" :: RelPath
+-- file.ext
+-- >>> replaceFileName "/" "file.ext" :: AbsPath
+-- /file.ext
 --
--- >>> dropFileName "directory/file.ext" :: RelPath
--- directory
--- >>> dropFileName "/directory/file.ext" :: AbsPath
+-- If the given path piece is degenerate, this is what happens:
+--
+-- >>> replaceFileName "/directory/other.txt" "..." :: AbsPath
 -- /directory
-dropFileName :: Path rel -> Path rel
-dropFileName (Path psc _ _)
+replaceFileName :: Path rel -> PathPiece -> Path rel
+replaceFileName path p
+    = case replaceFileNameExact path p of
+        Nothing -> dropFileName path
+        Just rs -> rs
+
+-- | Drop the last piece of a path, exactly
+--
+-- >>> dropFileNameExact ("directory/file.ext" :: RelPath)
+-- Just directory
+-- >>> dropFileNameExact ("/directory/file.ext" :: AbsPath)
+-- Just /directory
+--
+-- This evaluates to Nothing when given an empty path
+--
+-- >>> dropFileNameExact ("/" :: AbsPath)
+-- Nothing
+-- >>> dropFileNameExact ("." :: RelPath)
+-- Nothing
+dropFileNameExact :: Path rel -> Maybe (Path rel)
+dropFileNameExact (Path psc _ _)
     = case unsnoc psc of
-        Nothing -> emptyPath
+        Nothing -> Nothing
         Just (ps, p) ->
             let (lp, es) = splitPiece p
             in if isEmptyLastPathPiece lp
-               then emptyPath -- TODO(syd) fixme: really ugly
-               else Path ps lp es
+               then Nothing -- TODO(syd) fixme: really ugly
+               else Just $ Path ps lp es
+
+-- | Drop the last piece of a path
+--
+-- >>> dropFileName ("directory/file.ext" :: RelPath)
+-- directory
+-- >>> dropFileName ("/directory/file.ext" :: AbsPath)
+-- /directory
+--
+-- This evaluates to an empty path when given an empty path
+--
+-- >>> dropFileName ("/" :: AbsPath)
+-- /
+-- >>> dropFileName ("." :: RelPath)
+-- .
+--
+-- Replaces @System.FilePath.dropFileName@
+dropFileName :: Path rel -> Path rel
+dropFileName p
+    = case dropFileNameExact p of
+        Nothing -> emptyPath
+        Just rs -> rs
+
+-- | Take the last piece (no extensions)
+--
+-- >>> takeBaseNameExact ("file.ext" :: RelPath)
+-- Just file
+-- >>> takeBaseNameExact ("dir/and/file.ext" :: RelPath)
+-- Just file
+--
+-- This will evaluate to Nothing when given an empty path:
+--
+-- >>> takeBaseNameExact ("." :: RelPath)
+-- Nothing
+-- >>> takeBaseNameExact ("/" :: AbsPath)
+-- Nothing
+takeBaseNameExact :: Path rel -> Maybe LastPathPiece
+takeBaseNameExact p@(Path _ lp _)
+    | isEmptyPath p = Nothing
+    | otherwise = Just lp
 
 -- | Take the last piece (no extensions)
 --
@@ -658,8 +802,15 @@ dropFileName (Path psc _ _)
 -- file
 -- >>> takeBaseName ("dir/and/file.ext" :: RelPath)
 -- file
+--
+-- This will evaluate to an empty last path piece when given an empty path:
+--
+-- Replaces @System.FilePath.takeBaseName@
 takeBaseName :: Path rel -> LastPathPiece
-takeBaseName (Path _ lp _) = lp
+takeBaseName p
+    = case takeBaseNameExact p of
+        Nothing -> emptyLastPathPiece
+        Just rs -> rs
 
 -- | Replace the last piece exactly: fails on empty last piece
 --
@@ -686,10 +837,39 @@ replaceBaseNameExact (Path ps _ es) lp
 -- /thing
 -- >>> replaceBaseName "/directory/file" "" :: AbsPath
 -- /directory
+--
+-- Replaces @System.FilePath.replaceBaseName@
 replaceBaseName :: Path rel -> LastPathPiece -> Path rel
 replaceBaseName p@(Path ps _ es) lp
     | isEmptyLastPathPiece lp = dropFileName p
     | otherwise = Path ps lp es
+
+-- | Replace everthing but the last piece, exactly
+--
+-- >>> replaceDirectoryExact ("/dir/and/file" :: AbsPath) ("other/directory" :: RelPath)
+-- Just other/directory/file
+--
+-- This will evaluate to 'Nothing' if the first argument is an empty path.
+--
+-- >>> replaceDirectoryExact ("." :: RelPath) ("a/directory" :: RelPath)
+-- Nothing
+-- >>> replaceDirectoryExact ("/" :: AbsPath) ("a/directory" :: RelPath)
+-- Nothing
+--
+--
+-- This will evaluate to 'Nothing' if the second argument is an empty path.
+--
+-- >>> replaceDirectoryExact ("dir/file" :: RelPath) ("." :: RelPath)
+-- Nothing
+-- >>> replaceDirectoryExact ("dir/file" :: RelPath) ("/" :: AbsPath)
+-- Nothing
+replaceDirectoryExact :: Path r -> Path s -> Maybe (Path s)
+replaceDirectoryExact p@(Path _ lp es) q@(Path ps' lp' es')
+    | isEmptyPath p = Nothing
+    | isEmptyPath q = Nothing
+    | otherwise =
+        let p = combineLastAndExtensions lp' es'
+        in Just $ Path (ps' ++ [p]) lp es
 
 -- | Replace everthing but the last piece
 --
@@ -699,14 +879,57 @@ replaceBaseName p@(Path ps _ es) lp
 -- a/directory
 -- >>> replaceDirectory ("/" :: AbsPath) ("a/directory" :: RelPath)
 -- a/directory
+-- >>> replaceDirectory ("dir/file" :: RelPath) ("." :: RelPath)
+-- file
+-- >>> replaceDirectory ("dir/file" :: RelPath) ("/" :: AbsPath)
+-- /file
+--
+-- Replaces @System.FilePath.replaceDirectory@
 replaceDirectory :: Path r -> Path s -> Path s
-replaceDirectory p@(Path _ lp es) p'@(Path ps' lp' es')
-    | isEmptyPath p = p'
+replaceDirectory p@(Path _ lp es) q@(Path ps' lp' es')
+    | isEmptyPath p = q
+    | isEmptyPath q = Path [] lp es
     | otherwise =
         let p = combineLastAndExtensions lp' es'
         in Path (ps' ++ [p]) lp es
 
--- | If the first path has extensions, they will be appended to the last
+-- | Combine two paths, exactly
+--
+-- If the first path has extensions, they will be appended to the last
+-- pathpiece before concatenation
+--
+-- >>> combineExact "/directory/path" "another/path.ext" :: Maybe AbsPath
+-- Just /directory/path/another/path.ext
+-- >>> combineExact "directory/path"  "another/path.ext" :: Maybe RelPath
+-- Just directory/path/another/path.ext
+-- >>> combineExact "/file.ext1.ext2" "other/file.ext3"  :: Maybe AbsPath
+-- Just /file.ext1.ext2/other/file.ext3
+-- >>> combineExact "file.ext1.ext2"  "other/file.ext3"  :: Maybe RelPath
+-- Just file.ext1.ext2/other/file.ext3
+--
+-- This evaluates to 'Nothing' if any of the given paths are empty
+--
+-- >>> combineExact "." "file.ext" :: Maybe RelPath
+-- Nothing
+-- >>> combineExact "/" "file.ext" :: Maybe AbsPath
+-- Nothing
+combineExact :: Path rel -> RelPath -> Maybe (Path rel)
+combineExact p1 p2
+    | isEmptyPath p1 || isEmptyPath p2 = Nothing
+    | otherwise = Just Path
+        { pathPieces =
+            pathPieces p1
+            ++
+            [combineLastAndExtensions (pathLastPiece p1) (pathExtensions p1)]
+            ++
+            pathPieces p2
+        , pathLastPiece = pathLastPiece p2
+        , pathExtensions = pathExtensions p2
+        }
+
+-- | Combine two paths
+--
+-- If the first path has extensions, they will be appended to the last
 -- pathpiece before concatenation
 --
 -- >>> combine "/directory/path" "another/path.ext" :: AbsPath
@@ -717,23 +940,40 @@ replaceDirectory p@(Path _ lp es) p'@(Path ps' lp' es')
 -- /file.ext1.ext2/other/file.ext3
 -- >>> combine "file.ext1.ext2"  "other/file.ext3"  :: RelPath
 -- file.ext1.ext2/other/file.ext3
+--
+-- This treats empty paths as identities to the operation.
+--
+-- >>> combine "file.ext" "." :: RelPath
+-- file.ext
 -- >>> combine "." "file.ext" :: RelPath
 -- file.ext
 -- >>> combine "/" "file.ext" :: AbsPath
 -- /file.ext
+-- >>> combine "." "." :: RelPath
+-- .
+-- >>> combine "/" "." :: AbsPath
+-- /
+--
+-- Replaces @System.FilePath.combine@
 combine :: Path rel -> RelPath -> Path rel
 combine p1 p2
     | isEmptyPath p1 && isEmptyPath p2 = emptyPath
     | isEmptyPath p2 = p1
     | isEmptyPath p1 = unsafePathTypeCoerse p2
     | otherwise = Path
-        { pathPieces = pathPieces p1 ++ [combineLastAndExtensions (pathLastPiece p1) (pathExtensions p1)] ++ pathPieces p2
+        { pathPieces =
+            pathPieces p1
+            ++
+            [combineLastAndExtensions (pathLastPiece p1) (pathExtensions p1)]
+            ++
+            pathPieces p2
         , pathLastPiece = pathLastPiece p2
         , pathExtensions = pathExtensions p2
         }
 
--- | If the first path has extensions, they will be appended to the last
--- pathpiece before concatenation
+-- | Combine two paths
+--
+-- equivalent to 'combine'
 --
 -- >>> "/directory/path" </> "another/path.ext" :: AbsPath
 -- /directory/path/another/path.ext
@@ -747,6 +987,8 @@ combine p1 p2
 -- file.ext
 -- >>> "/" </> "file.ext" :: AbsPath
 -- /file.ext
+--
+-- Replaces @System.FilePath.(</>)@
 (</>) :: Path rel -> RelPath -> Path rel
 (</>) = combine
 
@@ -755,7 +997,8 @@ combine p1 p2
 -- >>> splitPath ("/a/full/absolute/directory/path" :: AbsPath)
 -- [a,full,absolute,directory,path]
 splitPath :: Path rel -> [PathPiece]
-splitPath (Path ps lp es) = ps ++ filter isValid [combineLastAndExtensions lp es]
+splitPath (Path ps lp es)
+    = ps ++ filter isValid [combineLastAndExtensions lp es]
 
 -- | Join path pieces back into a path
 --
@@ -776,4 +1019,63 @@ joinPath ps =
             in constructValid $ Path ips lp es
 
 
+--- [ UTILS ] ---
+
+initMay :: [a] -> Maybe [a]
+initMay [] = Nothing
+initMay as = Just $ reverse $ tail $ reverse as
+
+lastMay :: [a] -> Maybe a
+lastMay [] = Nothing
+lastMay as = Just $ head $ reverse as
+
+unsnoc :: [a] -> Maybe ([a], a)
+unsnoc as = (,) <$> initMay as <*> lastMay as
+
+uncons :: [a] -> Maybe (a, [a])
+uncons [] = Nothing
+uncons (a:as) = Just (a, as)
+
+isEmptyLastPathPiece :: LastPathPiece -> Bool
+isEmptyLastPathPiece = (== emptyLastPathPiece)
+
+emptyLastPathPiece :: LastPathPiece
+emptyLastPathPiece = (LastPathPiece T.empty)
+
+emptyPath :: Path rel
+emptyPath = (Path [] emptyLastPathPiece [])
+
+isEmptyPath :: Path rel -> Bool
+isEmptyPath p = p == emptyPath
+
+renderPiece :: PathPiece -> String
+renderPiece (PathPiece p) = T.unpack p
+
+renderLastPiece :: LastPathPiece -> String
+renderLastPiece (LastPathPiece p) = T.unpack p
+
+renderExtension :: Extension -> String
+renderExtension (Extension e) = T.unpack e
+
+renderExtensions :: [Extension] -> String
+renderExtensions [] = []
+renderExtensions es = [extensionSeparator]
+    ++ intercalate [extensionSeparator] (map renderExtension es)
+
+combineLastAndExtensions :: LastPathPiece -> [Extension] -> PathPiece
+combineLastAndExtensions (LastPathPiece lpp) es
+    = PathPiece $ lpp <> T.pack (renderExtensions es)
+
+splitPiece :: PathPiece -> (LastPathPiece, [Extension])
+splitPiece (PathPiece t) =
+    let rawExts = filter (not . T.null) $ T.split (== extensionSeparator) t
+    in case uncons rawExts of
+        Nothing -> (emptyLastPathPiece, [])
+        Just (lastPieceStr, safeExts) ->
+            let lastPiece = LastPathPiece lastPieceStr
+                exts = map Extension safeExts
+            in (lastPiece, exts)
+
+unsafePathTypeCoerse :: Path rel -> Path rel'
+unsafePathTypeCoerse (Path pieces lastPiece exts) = Path pieces lastPiece exts
 

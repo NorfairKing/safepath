@@ -1,4 +1,4 @@
-# `safepath`
+# `safepath` [![Build Status](https://travis-ci.org/NorfairKing/safepath.svg?branch=master)](https://travis-ci.org/NorfairKing/safepath)
 
 
 ## A reply to `filepath`
@@ -91,9 +91,23 @@ rel)` versus `replaceBaseName :: Path rel -> LastPathPiece -> Path rel`. Both
 are safe but `replaceBaseNameExact` will return Nothing if the given
 `LastPathPiece` is empty.
 
-## Only Posix
+## Contributions
+
+Contributions to this project are very welcome in the form of pull-requests
+
+Specifically, there is Low-hanging fruit in the form of:
+
+- More Examples
+- More tests
+
+## Only Posix for now
 
 Currently `safepath` only supports POSIX paths for two reasons:
 
-- Paths are hard
-- The author has never programmed for Windows.
+- Paths are hard enough already
+- The author has never programmed for other platforms.
+
+Pull requests to add support for other platforms are very welcome as long as:
+
+- They don't disrupt the API for POSIX
+- The code is tested to the same degree
