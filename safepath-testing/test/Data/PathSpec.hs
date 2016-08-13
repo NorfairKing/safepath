@@ -167,6 +167,16 @@ spec = do
         it "is the inverse of the succeeding runs of abspath when starting with a valid abspath without extensions" $ do
             inverseFunctionsIfFirstSucceedsOnGen abspath toAbsFilePath $ fst <$> genAbsPathNoExtensions
 
+    describe "takeExtension" $ do
+        it "produces a valid Maybe extension" $ do
+            producesValidsOnValids takeExtension
+
+        it "produces the second element of the result of splitExtension" $ do
+            pending
+
+        it "finds the extension set by replaceExtension for nonempty paths" $ do
+            pending
+
     describe "takeExtensions" $ do
         it "produces lists of extensions" $ do
             producesValidsOnValids takeExtensions
@@ -240,6 +250,10 @@ spec = do
             producesValidsOnValids2 stripExtensions
 
     describe "splitExtension" $ do
+        it "produces tuples of valid paths and a valid maybe extension" $ do
+            producesValidsOnValids splitExtension
+
+    describe "splitExtensions" $ do
         it "produces tuples of valid paths and a list of valid extensions" $ do
             producesValidsOnValids splitExtensions
 
@@ -251,6 +265,14 @@ spec = do
     describe "hasExtension" $ do
         it "is equivalent to null after takeExtension" $ do
             equivalentOnValid hasExtension (not . null . takeExtensions)
+
+    describe "takeFileNameExact" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids takeFileNameExact
+
+    describe "takeFileName" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids takeFileName
 
     describe "replaceFileNameExact" $ do
         it "produces valid paths if the first argument is the empty path" $ do
@@ -266,9 +288,17 @@ spec = do
         it "produces valid paths" $ do
             producesValidsOnValids2 replaceFileName
 
+    describe "dropFileNameExact" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids dropFileNameExact
+
     describe "dropFileName" $ do
         it "produces valid paths" $ do
             producesValidsOnValids dropFileName
+
+    describe "takeBaseNameExact" $ do
+        it "produces valid last pieces" $ do
+            producesValidsOnValids takeBaseNameExact
 
     describe "takeBaseName" $ do
         it "produces valid last pieces" $ do
@@ -282,6 +312,16 @@ spec = do
             producesValidsOnGens2 replaceBaseNameExact genValid (pure emptyLastPathPiece)
 
         it "produces valid Maybe paths" $ do
+            producesValidsOnValids2 replaceBaseNameExact
+
+    describe "replaceBaseNameExact" $ do
+        it "produces valid paths if the first argument is the empty path" $ do
+            producesValidsOnGens2 replaceBaseNameExact (pure emptyPath) genValid
+
+        it "produces valid paths if the second argument is the empty last path piece" $ do
+            producesValidsOnGens2 replaceBaseNameExact genValid (pure emptyLastPathPiece)
+
+        it "produces valid paths" $ do
             producesValidsOnValids2 replaceBaseNameExact
 
     describe "replaceBaseName" $ do
@@ -304,18 +344,22 @@ spec = do
         it "produces valid paths" $ do
             producesValidsOnValids2 replaceDirectory
 
+    describe "combineExact" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids2 combineExact
+
     describe "combine" $ do
         it "produces valid paths" $ do
-            producesValidsOnValids2 (</>)
+            producesValidsOnValids2 combine
 
         it "is an associative operation" $ do
-            associativeOnValids (</>)
+            associativeOnValids combine
 
         it "Has a left identity: the empty path" $ do
-            leftIdentityOnValid (</>) emptyPath
+            leftIdentityOnValid combine emptyPath
 
         it "Has a right identity: the empty path" $ do
-            rightIdentityOnValid (</>) emptyPath
+            rightIdentityOnValid combine emptyPath
 
     describe "</>" $ do
         it "is equivalent to combine" $ do
