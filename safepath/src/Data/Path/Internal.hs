@@ -120,6 +120,8 @@ pathSeparators = [pathSeparator]
 --
 -- >>> isPathSeparator pathSeparator
 -- True
+-- >>> all isPathSeparator pathSeparators
+-- True
 isPathSeparator :: Char -> Bool
 isPathSeparator = (== pathSeparator)
 
@@ -132,6 +134,8 @@ extensionSeparators = [extensionSeparator]
 -- | Check if a given character is a valid extension separator
 --
 -- >>> isExtensionSeparator extensionSeparator
+-- True
+-- >>> all isExtensionSeparator extensionSeparators
 -- True
 isExtensionSeparator :: Char -> Bool
 isExtensionSeparator = (== extensionSeparator)
@@ -686,12 +690,7 @@ hasExtension = not . null . takeExtensions
 -- >>> splitFileName ("dir.ext/file.ext" :: RelPath)
 -- (dir.ext,file.ext)
 splitFileName :: Path rel -> (Path rel, RelPath)
-splitFileName (Path ps lp es)
-    = case unsnoc ps of
-          Nothing -> (emptyPath, Path [] lp es)
-          Just (firsts, lastp) ->
-              let (lp', es') = splitPiece lastp
-              in (Path firsts lp' es', Path [] lp es)
+splitFileName p = (dropFileName p, takeFileName p)
 
 -- | Take the last piece and the extensions, exactly.
 --

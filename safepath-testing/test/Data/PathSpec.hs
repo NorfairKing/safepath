@@ -102,11 +102,11 @@ spec = do
                     Just res -> unsafeRelPathError fp `shouldBe` res
 
     describe "unsafeAbsPathError" $ do
-        it "behaves just like relpath except for errors" $ do
+        it "behaves just like abspath except for errors" $ do
             forAll uncheckedPath $ \fp ->
-                case relpath fp of
-                    Nothing -> evaluate (unsafeRelPathError fp) `shouldThrow` anyErrorCall
-                    Just res -> unsafeRelPathError fp `shouldBe` res
+                case abspath fp of
+                    Nothing -> evaluate (unsafeAbsPathError fp) `shouldThrow` anyErrorCall
+                    Just res -> unsafeAbsPathError fp `shouldBe` res
 
     describe "unsafePathPieceError" $ do
         it "behaves just like pathpiece except for errors" $ do
@@ -297,6 +297,10 @@ spec = do
     describe "hasExtension" $ do
         it "is equivalent to null after takeExtension" $ do
             equivalentOnValid hasExtension (not . null . takeExtensions)
+
+    describe "splitFileName" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids splitFileName
 
     describe "takeFileNameExact" $ do
         it "produces valid paths" $ do
