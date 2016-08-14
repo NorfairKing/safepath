@@ -26,7 +26,7 @@ library
     , QuickCheck            >= 2.8       && < 2.9
     , aeson                 >= 0.11      && < 0.12
     , genvalidity           >= 0.2       && < 0.3
-    , genvalidity-hspec     >= 0.2.0.1   && < 0.3
+    , genvalidity-hspec     >= 0.2.0.4   && < 0.3
     , genvalidity-text      >= 0.1       && < 0.2
     , hspec                 >= 2.2       && < 2.3
     , mtl                   >= 2.2       && < 2.3

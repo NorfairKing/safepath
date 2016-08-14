@@ -108,6 +108,20 @@ spec = do
                     Nothing -> evaluate (unsafeRelPathError fp) `shouldThrow` anyErrorCall
                     Just res -> unsafeRelPathError fp `shouldBe` res
 
+    describe "unsafePathPieceError" $ do
+        it "behaves just like pathpiece except for errors" $ do
+            forAll uncheckedPath $ \fp ->
+                case pathpiece fp of
+                    Nothing -> evaluate (unsafePathPieceError fp) `shouldThrow` anyErrorCall
+                    Just res -> unsafePathPieceError fp `shouldBe` res
+
+    describe "unsafeLastPieceError" $ do
+        it "behaves just like lastpiece except for errors" $ do
+            forAll uncheckedPath $ \fp ->
+                case lastpiece fp of
+                    Nothing -> evaluate (unsafeLastPieceError fp) `shouldThrow` anyErrorCall
+                    Just res -> unsafeLastPieceError fp `shouldBe` res
+
     describe "unsafeExtError" $ do
         it "behaves just like ext except for errors" $ do
             forAll uncheckedPath $ \fp ->
@@ -172,10 +186,12 @@ spec = do
             producesValidsOnValids takeExtension
 
         it "produces the second element of the result of splitExtension" $ do
-            pending
+            equivalentOnValid takeExtension (\p -> snd <$> splitExtension p)
 
-        it "finds the extension set by replaceExtension for nonempty paths" $ do
-            pending
+        it "finds the extension set by addExtension for non-empty paths " $ do
+            forAll (genValid `suchThat` (not . isEmptyPath)) $ \path ->
+                forAll genValid $ \ext ->
+                    takeExtension (addExtension path ext) `shouldBe` Just ext
 
     describe "takeExtensions" $ do
         it "produces lists of extensions" $ do
@@ -189,6 +205,15 @@ spec = do
                 forAll genUnchecked $ \es ->
                     takeExtensions (replaceExtensionss path es) `shouldBe` es
 
+    describe "replaceExtensionExact" $ do
+        it "produces valid paths if the first argument is the empty path" $ do
+            producesValidsOnGens2 replaceExtensionExact (pure emptyPath) genValid
+
+        it "produces valid paths" $ do
+            producesValidsOnValids2 replaceExtensionExact
+
+        it "is equivalent to replaceExtension if it succeeds" $ do
+            equivalentWhenFirstSucceedsOnValids2 replaceExtensionExact replaceExtension
 
     describe "replaceExtension" $ do
         it "produces valid paths if the first argument is the empty path" $ do
@@ -217,6 +242,13 @@ spec = do
     describe "-<.>" $ do
         it "behaves exactly like replaceExtension" $ do
             equivalent2 replaceExtension (-<.>)
+
+    describe "dropExtensionExact" $ do
+        it "produces valid paths" $ do
+            producesValidsOnValids dropExtensionExact
+
+        it "is equivalent to dropExtension if it succeeds" $ do
+            equivalentWhenFirstSucceedsOnValid dropExtensionExact dropExtension
 
     describe "dropExtension" $ do
         it "produces valid paths" $ do
@@ -270,6 +302,9 @@ spec = do
         it "produces valid paths" $ do
             producesValidsOnValids takeFileNameExact
 
+        it "is equivalent to takeFileName if it succeeds" $ do
+            equivalentWhenFirstSucceedsOnValid takeFileNameExact takeFileName
+
     describe "takeFileName" $ do
         it "produces valid paths" $ do
             producesValidsOnValids takeFileName
@@ -280,6 +315,9 @@ spec = do
 
         it "produces valid paths" $ do
             producesValidsOnValids2 replaceFileNameExact
+
+        it "is equivalent to replaceFileName if it succeeds" $ do
+            equivalentWhenFirstSucceedsOnValids2 replaceFileNameExact replaceFileName
 
     describe "replaceFileName" $ do
         it "produces valid paths if the first argument is the empty path" $ do
@@ -292,6 +330,9 @@ spec = do
         it "produces valid paths" $ do
             producesValidsOnValids dropFileNameExact
 
+        it "is equivalent to dropFileName if it succeeds" $ do
+            equivalentWhenFirstSucceedsOnValid dropFileNameExact dropFileName
+
     describe "dropFileName" $ do
         it "produces valid paths" $ do
             producesValidsOnValids dropFileName
@@ -299,6 +340,9 @@ spec = do
     describe "takeBaseNameExact" $ do
         it "produces valid last pieces" $ do
             producesValidsOnValids takeBaseNameExact
+
+        it "is equivalent to takeBaseName if it succeeds" $ do
+            equivalentWhenFirstSucceedsOnValid takeBaseNameExact takeBaseName
 
     describe "takeBaseName" $ do
         it "produces valid last pieces" $ do
@@ -314,15 +358,8 @@ spec = do
         it "produces valid Maybe paths" $ do
             producesValidsOnValids2 replaceBaseNameExact
 
-    describe "replaceBaseNameExact" $ do
-        it "produces valid paths if the first argument is the empty path" $ do
-            producesValidsOnGens2 replaceBaseNameExact (pure emptyPath) genValid
-
-        it "produces valid paths if the second argument is the empty last path piece" $ do
-            producesValidsOnGens2 replaceBaseNameExact genValid (pure emptyLastPathPiece)
-
-        it "produces valid paths" $ do
-            producesValidsOnValids2 replaceBaseNameExact
+        it "is equivalent to replaceBaseName if it succeeds" $ do
+            equivalentWhenFirstSucceedsOnValids2 replaceBaseNameExact replaceBaseName
 
     describe "replaceBaseName" $ do
         it "produces valid paths if the first argument is the empty path" $ do
@@ -333,6 +370,19 @@ spec = do
 
         it "produces valid paths" $ do
             producesValidsOnValids2 replaceBaseName
+
+    describe "replaceDirectoryExact" $ do
+        it "produces valid paths if the first argument is the empty path" $ do
+            producesValidsOnGens2 replaceDirectoryExact (pure emptyPath) genValid
+
+        it "produces valid paths if the second argument is the empty path" $ do
+            producesValidsOnGens2 replaceDirectoryExact genValid (pure emptyPath)
+
+        it "produces valid paths" $ do
+            producesValidsOnValids2 replaceDirectoryExact
+
+        it "is equivalent to replaceDirectory if it succeeds" $ do
+            equivalentWhenFirstSucceedsOnValids2 replaceDirectoryExact replaceDirectory
 
     describe "replaceDirectory" $ do
         it "produces valid paths if the first argument is the empty path" $ do
@@ -347,6 +397,9 @@ spec = do
     describe "combineExact" $ do
         it "produces valid paths" $ do
             producesValidsOnValids2 combineExact
+
+        it "is equivalent to combine if it succeeds" $ do
+            equivalentWhenFirstSucceedsOnValids2 combineExact combine
 
     describe "combine" $ do
         it "produces valid paths" $ do

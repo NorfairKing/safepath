@@ -246,8 +246,7 @@ ground ap fp = case abspath fp of
         Just r -> Just $ ap </> r
         Nothing -> Nothing
 
--- | Construct a relative path, throwing an 'error'
--- if 'relpath' would fail.
+-- | Construct a relative path, throwing an 'error' if 'relpath' would fail.
 unsafeRelPathError :: FilePath -> RelPath
 unsafeRelPathError fp
     = constructValidUnsafe
@@ -255,20 +254,21 @@ unsafeRelPathError fp
     . relpath $ fp
 
 
--- | Construct an absolute path, throwing an 'error'
--- if 'abspath' would fail.
+-- | Construct an absolute path, throwing an 'error' if 'abspath' would fail.
 unsafeAbsPathError :: FilePath -> AbsPath
 unsafeAbsPathError fp
     = constructValidUnsafe
     . fromMaybe (error $ "Invalid path: " ++ fp)
     . abspath $ fp
 
+-- | Construct an extension, throwing an 'error' if 'pathpiece' would fail.
 unsafePathPieceError :: String -> PathPiece
 unsafePathPieceError s
     = constructValidUnsafe
     . fromMaybe (error $ "Invalid path piece: " ++ s)
     . pathpiece $ s
 
+-- | Construct an extension, throwing an 'error' if 'lastpiece' would fail.
 unsafeLastPieceError :: String -> LastPathPiece
 unsafeLastPieceError s
     = constructValidUnsafe
@@ -318,6 +318,31 @@ takeExtension (Path _ _ es) = lastMay es
 takeExtensions :: Path rel -> [Extension]
 takeExtensions (Path _ _ es) = es
 
+-- | Replace the last extension of a path, exactly
+--
+-- This will fail if the given path has no extension
+--
+-- >>> replaceExtensionExact "dir/file.ext1.ext2"  "ext3" :: Maybe RelPath
+-- Just dir/file.ext1.ext3
+-- >>> replaceExtensionExact "dir/file.ext1"       "ext2" :: Maybe RelPath
+-- Just dir/file.ext2
+-- >>> replaceExtensionExact "dir/file"            "ext"  :: Maybe RelPath
+-- Nothing
+-- >>> replaceExtensionExact "/dir/file.ext1.ext2" "ext3" :: Maybe AbsPath
+-- Just /dir/file.ext1.ext3
+-- >>> replaceExtensionExact "/dir/file.ext1"      "ext2" :: Maybe AbsPath
+-- Just /dir/file.ext2
+-- >>> replaceExtensionExact "/dir/file"           "ext"  :: Maybe AbsPath
+-- Nothing
+-- >>> replaceExtensionExact "." "ext" :: Maybe RelPath
+-- Nothing
+-- >>> replaceExtensionExact "/" "ext" :: Maybe AbsPath
+-- Nothing
+replaceExtensionExact :: Path rel -> Extension -> Maybe (Path rel)
+replaceExtensionExact path extension = do
+  path' <- dropExtensionExact path
+  return $ path' <.> extension
+
 -- | Replace the last extension of a path
 --
 -- This will first remove one extension and then add the given extension.
@@ -342,8 +367,6 @@ takeExtensions (Path _ _ es) = es
 -- /
 --
 -- Replaces @System.FilePath.replaceExtension@
-
--- TODO(syd) exact version
 replaceExtension :: Path rel -> Extension -> Path rel
 replaceExtension path extension = dropExtension path <.> extension
 
@@ -416,6 +439,31 @@ replaceExtensionss p@(Path ps lp _) es
   | isEmptyPath p = emptyPath
   | otherwise = (Path ps lp es)
 
+-- | Drop the last extension of a path, exactly
+--
+-- This will fail if the given path has no extensions
+--
+-- >>> dropExtensionExact "dir/file.ext1.ext2" :: Maybe RelPath
+-- Just dir/file.ext1
+-- >>> dropExtensionExact "dir/file.ext" :: Maybe RelPath
+-- Just dir/file
+-- >>> dropExtensionExact "dir/file" :: Maybe RelPath
+-- Nothing
+-- >>> dropExtensionExact "/dir/file.ext1.ext2" :: Maybe AbsPath
+-- Just /dir/file.ext1
+-- >>> dropExtensionExact "/dir/file.ext" :: Maybe AbsPath
+-- Just /dir/file
+-- >>> dropExtensionExact "/dir/file" :: Maybe AbsPath
+-- Nothing
+-- >>> dropExtensionExact "." :: Maybe RelPath
+-- Nothing
+-- >>> dropExtensionExact "/" :: Maybe AbsPath
+-- Nothing
+dropExtensionExact :: Path rel -> Maybe (Path rel)
+dropExtensionExact path@(Path _ _ es) = do
+    is <- initMay es
+    return $ path { pathExtensions = is }
+
 -- | Drop the last extension of a path
 --
 -- >>> dropExtension "dir/file.ext1.ext2" :: RelPath
@@ -436,8 +484,6 @@ replaceExtensionss p@(Path ps lp _) es
 -- /
 --
 -- Replaces @System.FilePath.dropExtension@
-
--- TODO(syd) exact version
 dropExtension :: Path rel -> Path rel
 dropExtension path = path
     { pathExtensions = reverse . drop 1 . reverse $ pathExtensions path }
@@ -771,7 +817,7 @@ dropFileNameExact (Path psc _ _)
 -- >>> dropFileName ("." :: RelPath)
 -- .
 --
--- Replaces @System.FilePath.dropFileName@
+-- Replaces @System.FilePath.dropFileName@ and @System.FilePath.takeDirectory@
 dropFileName :: Path rel -> Path rel
 dropFileName p
     = case dropFileNameExact p of

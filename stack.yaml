@@ -3,9 +3,11 @@ extra-package-dbs: []
 packages:
 - ./safepath
 - ./safepath-testing
+- location: /home/syd/validity/genvalidity-hspec
+  extra-dep: true
 extra-deps:
 - genvalidity-0.2.0.1
-- genvalidity-hspec-0.2.0.3
+- genvalidity-hspec-0.2.0.4
 - genvalidity-text-0.1.0.0
 - validity-0.3.0.1
 compiler: ghc-8.0.1

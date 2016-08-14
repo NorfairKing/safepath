@@ -20,7 +20,7 @@ module Data.Path
 
     -- ** Constructing safe values safely
 
-     , relpath
+    , relpath
     , abspath
     , ext
     , ground
@@ -40,53 +40,91 @@ module Data.Path
 
     -- * Functions involving extension
 
+    -- ** Inspecting extensions
+
     , takeExtension
     , takeExtensions
 
-    , replaceExtension
-    , (-<.>)
-    , replaceExtensions
-    , replaceExtensionss
-
-    , dropExtension
-    , dropExtensions
+    -- ** Adding extensions
 
     , addExtension
     , (<.>)
     , addExtensions
 
+    -- ** Removing extensions
+
+    , dropExtensionExact
+    , dropExtension
+    , dropExtensions
+
+    -- ** Replacing extensions
+
+    , replaceExtensionExact
+    , replaceExtension
+    , (-<.>)
+    , replaceExtensions
+    , replaceExtensionss
+
+    -- ** Removing given extensions
+
     , stripExtension
     , stripExtensions
 
+    -- ** Splitting extensions off a path
+
     , splitExtension
     , splitExtensions
+
+    -- ** Predicates involving extensions
 
     , hasExtension
 
 
     -- * Functions involving Path pieces
 
+    -- ** File names
+
+    -- *** Inspecting file names
+
     , takeFileNameExact
     , takeFileName
 
-    , replaceFileNameExact
-    , replaceFileName
+    -- *** Removing file names
 
     , dropFileNameExact
     , dropFileName
 
+    -- *** Replacing file names
+
+    , replaceFileNameExact
+    , replaceFileName
+
+    -- ** Base names
+
+    -- *** Inspecting base names
+
     , takeBaseNameExact
     , takeBaseName
+
+    -- *** Replacing base names
 
     , replaceBaseNameExact
     , replaceBaseName
 
+    -- ** Directories
+
+    -- *** Replacing directories
+
     , replaceDirectoryExact
     , replaceDirectory
+
+    -- ** Combining paths
 
     , combineExact
     , combine
     , (</>)
+
+    -- ** Pieces of paths
 
     , splitPath
     , joinPath
