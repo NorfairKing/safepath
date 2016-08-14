@@ -43,7 +43,7 @@ coverage:
 	stack clean
 	stack test \
 		--coverage \
-		--test-arguments="--qc-max-success=10 --qc-max-size=10"
+		--test-arguments="--qc-max-success=1000 --qc-max-size=25"
 
 heavytest:
 	stack test :safepath-tests \
