@@ -1,10 +1,12 @@
 flags: {}
 extra-package-dbs: []
 packages:
-- '.'
+- ./safepath
+- ./safepath-testing
 extra-deps:
 - genvalidity-0.2.0.1
-- genvalidity-hspec-0.2.0.1
+- genvalidity-hspec-0.2.0.4
 - genvalidity-text-0.1.0.0
-- validity-0.3.0.0
-resolver: lts-6.10
+- validity-0.3.0.1
+compiler: ghc-8.0.1
+resolver: nightly-2016-06-05
