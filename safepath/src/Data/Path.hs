@@ -29,6 +29,8 @@ module Data.Path
 
     , unsafeRelPathError
     , unsafeAbsPathError
+    , unsafePathPieceError
+    , unsafeLastPieceError
     , unsafeExtError
 
 
