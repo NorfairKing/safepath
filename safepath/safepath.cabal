@@ -2,7 +2,7 @@ name:                safepath
 version:             0.1.0.0
 synopsis:            Safe Paths in Haskell
 description:         Please see README.md
-homepage:            https://github.com/githubuser/safepath#readme
+homepage:            https://github.com/NorfairKing/safepath#readme
 license:             MIT
 license-file:        LICENSE
 author:              Tom Sydney Kerckhove
